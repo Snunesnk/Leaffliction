@@ -2,10 +2,13 @@
 #include <fstream>
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-void applyRotate(cv::Mat& image, double angle) {
+void applyRotate(cv::Mat &image, double angle)
+{
 
-    // Calculer la taille de l'image résultante après la rotation
+    // Calculer la taille de l'image rï¿½sultante aprï¿½s la rotation
     cv::Rect boundingRect = cv::RotatedRect(cv::Point2f(image.cols / 2.0, image.rows / 2.0), image.size(), angle).boundingRect();
 
     // Calculer automatiquement le facteur de scaling
@@ -15,110 +18,85 @@ void applyRotate(cv::Mat& image, double angle) {
     cv::Mat rotationMatrix = cv::getRotationMatrix2D(cv::Point2f(image.cols / 2.0, image.rows / 2.0), angle, scale_factor);
 
     std::cout << "Original Image Size: " << image.size() << std::endl;
-    std::cout << "Rotation Matrix:\n" << rotationMatrix << std::endl;
+    std::cout << "Rotation Matrix:\n"
+              << rotationMatrix << std::endl;
     std::cout << "Scale Factor: " << scale_factor << std::endl;
 
-    // Créer une nouvelle image avec fond blanc de la taille de l'image d'origine
+    // Crï¿½er une nouvelle image avec fond blanc de la taille de l'image d'origine
     cv::Mat rotatedImage = cv::Mat::zeros(image.size(), image.type());
 
-    // Appliquer la rotation (et le scaling) à l'image d'origine
+    // Appliquer la rotation (et le scaling) ï¿½ l'image d'origine
     cv::warpAffine(image, rotatedImage, rotationMatrix, rotatedImage.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
 
     std::cout << "Rotated and Scaled Image Size: " << rotatedImage.size() << std::endl;
 
-    // Remplacer l'image d'origine par l'image rotée et réduite
+    // Remplacer l'image d'origine par l'image rotï¿½e et rï¿½duite
     image = rotatedImage;
 }
 
-void applyBlur(cv::Mat& image, double sigma) {
+void applyBlur(cv::Mat &image, double sigma)
+{
     cv::GaussianBlur(image, image, cv::Size(0, 0), sigma);
 }
 
-void applyContrast(cv::Mat& image, double alpha) {
+void applyContrast(cv::Mat &image, double alpha)
+{
     image.convertTo(image, -1, alpha, 0);
 }
 
-void applyScale(cv::Mat& image, double factor) {
+void applyZoom(cv::Mat &image, double zoom_factor)
+{
     cv::Point2f center(image.cols / 2.0, image.rows / 2.0);
-    cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0.0, factor);
+    cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0.0, zoom_factor);
 
     std::cout << "Original Image Size: " << image.size() << std::endl;
-    std::cout << "Zoom Matrix:\n" << zoomMatrix << std::endl;
-    std::cout << "Zoom Factor: " << factor << std::endl;
+    std::cout << "Zoom Matrix:\n"
+              << zoomMatrix << std::endl;
+    std::cout << "Zoom Factor: " << zoom_factor << std::endl;
 
-    // Appliquer le zoom à l'image d'origine
+    // Appliquer le zoom ï¿½ l'image d'origine
     cv::warpAffine(image, image, zoomMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
 
     std::cout << "Zoomed Image Size: " << image.size() << std::endl;
 }
 
-void applyIllumination(cv::Mat& image, int brightness) {
+void applyIllumination(cv::Mat &image, int brightness)
+{
     image += cv::Scalar(brightness, brightness, brightness);
 }
 
-void applyProjective(cv::Mat& image, double alpha, double beta, double gamma, double dx, double dy, double dz, double f) {
+cv::Mat applyProjective(cv::Mat &image)
+{
+    // Define your source points from the original image
+    std::vector<cv::Point2f> srcPoints;
+    srcPoints.push_back(cv::Point2f(0, 0));                           // Top-left corner
+    srcPoints.push_back(cv::Point2f(image.cols - 1, 0));              // Top-right corner
+    srcPoints.push_back(cv::Point2f(image.cols - 1, image.rows - 1)); // Bottom-right corner
+    srcPoints.push_back(cv::Point2f(0, image.rows - 1));              // Bottom-left corner
 
-    // Convertir les angles en radians
-    alpha = (alpha - 90.0) * CV_PI / 180.0;
-    beta = (beta - 90.0) * CV_PI / 180.0;
-    gamma = (gamma - 90.0) * CV_PI / 180.0;
+    // Define your destination points (these could be anywhere you wish to warp to)
+    std::vector<cv::Point2f> dstPoints;
+    dstPoints.push_back(cv::Point2f(0, 100)); // These values are just examples
+    dstPoints.push_back(cv::Point2f(image.cols - 100, 50));
+    dstPoints.push_back(cv::Point2f(image.cols - 1, image.rows - 100));
+    dstPoints.push_back(cv::Point2f(50, image.rows - 1));
 
-    // Obtenir la largeur et la hauteur pour faciliter l'utilisation dans les matrices
-    double w = static_cast<double>(image.cols);
-    double h = static_cast<double>(image.rows);
+    // Get the Perspective Transform Matrix i.e. M
+    cv::Mat warpMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
 
-    // Projection 2D -> 3D matrix
-    cv::Mat A1 = (cv::Mat_<double>(4, 3) <<
-        1, 0, -w / 2,
-        0, 1, -h / 2,
-        0, 0, 0,
-        0, 0, 1);
+    // Create a destination image
+    cv::Mat warpedImage(image.rows, image.cols, image.type());
 
-    // Rotation matrices around the X, Y, and Z axis
-    cv::Mat RX = (cv::Mat_<double>(4, 4) <<
-        1, 0, 0, 0,
-        0, cos(alpha), -sin(alpha), 0,
-        0, sin(alpha), cos(alpha), 0,
-        0, 0, 0, 1);
+    // Apply the perspective transformation to the image
+    cv::warpPerspective(image, warpedImage, warpMatrix, warpedImage.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT);
 
-    cv::Mat RY = (cv::Mat_<double>(4, 4) <<
-        cos(beta), 0, -sin(beta), 0,
-        0, 1, 0, 0,
-        sin(beta), 0, cos(beta), 0,
-        0, 0, 0, 1);
-
-    cv::Mat RZ = (cv::Mat_<double>(4, 4) <<
-        cos(gamma), -sin(gamma), 0, 0,
-        sin(gamma), cos(gamma), 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1);
-
-    // Composed rotation matrix with (RX, RY, RZ)
-    cv::Mat R = RX * RY * RZ;
-
-    // Translation matrix
-    cv::Mat T = (cv::Mat_<double>(4, 4) <<
-        1, 0, 0, dx,
-        0, 1, 0, dy,
-        0, 0, 1, dz,
-        0, 0, 0, 1);
-
-    // 3D -> 2D matrix
-    cv::Mat A2 = (cv::Mat_<double>(3, 4) <<
-        f, 0, w / 2, 0,
-        0, f, h / 2, 0,
-        0, 0, 1, 0);
-
-    // Final transformation matrix
-    cv::Mat trans = A2 * (T * (R * A1));
-
-    // Apply matrix transformation
-    cv::warpPerspective(image, image, trans, image.size(), cv::INTER_LANCZOS4);
-
+    return warpedImage;
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 2) {
+int main(int argc, char *argv[])
+{
+    if (argc != 2)
+    {
         std::cerr << "Usage: " << argv[0] << " <directory_path>" << std::endl;
         return 1;
     }
@@ -126,45 +104,26 @@ int main(int argc, char* argv[]) {
     std::string filePath = argv[1];
     filePath += "/Apple_Black_rot/image (55).JPG";
 
-    // Charger une image à partir d'un fichier JPEG
+    // Charger une image ï¿½ partir d'un fichier JPEG
     cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
 
-    // Vérifier si l'image a été chargée avec succès
-    if (image.empty()) {
+    // Vï¿½rifier si l'image a ï¿½tï¿½ chargï¿½e avec succï¿½s
+    if (image.empty())
+    {
         std::cerr << "Impossible de charger l'image." << std::endl;
         return -1;
     }
 
-    cv::Mat applyRotateImage = image.clone();
-    cv::Mat applyBlurImage = image.clone();
-    cv::Mat applyContrastImage = image.clone();
-    cv::Mat applyScaleImage = image.clone();
-    cv::Mat applyIlluminationImage = image.clone();
-    cv::Mat applyProjectiveImage = image.clone();
+    applyRotate(image, 10.0);
+    applyBlur(image, 3.0);
+    applyContrast(image, 1.5);
+    applyScale(image, 1.5);
+    applyIllumination(image, 30);
 
-    applyRotate(applyRotateImage, 10.0);
-    applyBlur(applyBlurImage, 3.0);
-    applyContrast(applyContrastImage, 1.5);
-    applyScale(applyScaleImage, 1.5);
-    applyIllumination(applyIlluminationImage, 30);
+    cv::Mat warpedImage = applyProjective(image);
 
-    double alpha = 90; // Angle de rotation autour de l'axe X
-    double beta = 45; // Angle de rotation autour de l'axe Y
-    double gamma = 90; // Angle de rotation autour de l'axe Z
-    double dx = 0; // Translation en x
-    double dy = 0; // Translation en y
-    double dz = 200; // Translation en z
-    double f = 200; // Focale
-    applyProjective(applyProjectiveImage, alpha, beta, gamma, dx, dy, dz, f);
-
-    // Afficher l'image modifiée
-    cv::imshow("image", image);
-    cv::imshow("applyRotateImage", applyRotateImage);
-    cv::imshow("applyBlurImage", applyBlurImage);
-    cv::imshow("applyContrastImage", applyContrastImage);
-    cv::imshow("applyScaleImage", applyScaleImage);
-    cv::imshow("applyIlluminationImage", applyIlluminationImage);
-    cv::imshow("applyProjectiveImage", applyProjectiveImage);
+    // Afficher l'image modifiï¿½e
+    cv::imshow("Modified image", warpedImage);
     cv::waitKey(0);
 
     return 0;

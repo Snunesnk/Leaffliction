@@ -76,10 +76,10 @@ cv::Mat applyProjective(cv::Mat &image)
 
     // Define your destination points (these could be anywhere you wish to warp to)
     std::vector<cv::Point2f> dstPoints;
-    dstPoints.push_back(cv::Point2f(0, 100)); // These values are just examples
-    dstPoints.push_back(cv::Point2f(image.cols - 100, 50));
-    dstPoints.push_back(cv::Point2f(image.cols - 1, image.rows - 100));
-    dstPoints.push_back(cv::Point2f(50, image.rows - 1));
+    dstPoints.push_back(cv::Point2f(0, 25)); // These values are just examples
+    dstPoints.push_back(cv::Point2f(image.cols - 50, 0));
+    dstPoints.push_back(cv::Point2f(image.cols - 50, image.rows - 1));
+    dstPoints.push_back(cv::Point2f(25, image.rows - 1));
 
     // Get the Perspective Transform Matrix i.e. M
     cv::Mat warpMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
@@ -114,11 +114,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    applyRotate(image, 10.0);
-    applyBlur(image, 3.0);
-    applyContrast(image, 1.5);
-    applyScale(image, 1.5);
-    applyIllumination(image, 30);
+    // applyRotate(image, 10.0);
+    // applyBlur(image, 3.0);
+    // applyContrast(image, 1.5);
+    // applyScale(image, 1.5);
+    // applyIllumination(image, 30);
 
     cv::Mat warpedImage = applyProjective(image);
 

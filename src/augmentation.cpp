@@ -38,13 +38,13 @@ void applyContrast(cv::Mat& image, double alpha) {
     image.convertTo(image, -1, alpha, 0);
 }
 
-void applyZoom(cv::Mat& image, double zoom_factor) {
+void applyScale(cv::Mat& image, double factor) {
     cv::Point2f center(image.cols / 2.0, image.rows / 2.0);
-    cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0.0, zoom_factor);
+    cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0.0, factor);
 
     std::cout << "Original Image Size: " << image.size() << std::endl;
     std::cout << "Zoom Matrix:\n" << zoomMatrix << std::endl;
-    std::cout << "Zoom Factor: " << zoom_factor << std::endl;
+    std::cout << "Zoom Factor: " << factor << std::endl;
 
     // Appliquer le zoom à l'image d'origine
     cv::warpAffine(image, image, zoomMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
@@ -135,12 +135,19 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    //applyRotate(image, 10.0);
-    //applyBlur(image, 3.0);
-    //applyContrast(image, 1.5);
-    //applyScale(image, 1.5);
-    //applyIllumination(image, 30);
-    
+    cv::Mat applyRotateImage = image.clone();
+    cv::Mat applyBlurImage = image.clone();
+    cv::Mat applyContrastImage = image.clone();
+    cv::Mat applyScaleImage = image.clone();
+    cv::Mat applyIlluminationImage = image.clone();
+    cv::Mat applyProjectiveImage = image.clone();
+
+    applyRotate(applyRotateImage, 10.0);
+    applyBlur(applyBlurImage, 3.0);
+    applyContrast(applyContrastImage, 1.5);
+    applyScale(applyScaleImage, 1.5);
+    applyIllumination(applyIlluminationImage, 30);
+
     double alpha = 90; // Angle de rotation autour de l'axe X
     double beta = 45; // Angle de rotation autour de l'axe Y
     double gamma = 90; // Angle de rotation autour de l'axe Z
@@ -148,10 +155,16 @@ int main(int argc, char* argv[]) {
     double dy = 0; // Translation en y
     double dz = 200; // Translation en z
     double f = 200; // Focale
-    applyProjective(image, alpha, beta, gamma, dx, dy, dz, f);
+    applyProjective(applyProjectiveImage, alpha, beta, gamma, dx, dy, dz, f);
 
     // Afficher l'image modifiée
-    cv::imshow("Image modifiée", image);
+    cv::imshow("image", image);
+    cv::imshow("applyRotateImage", applyRotateImage);
+    cv::imshow("applyBlurImage", applyBlurImage);
+    cv::imshow("applyContrastImage", applyContrastImage);
+    cv::imshow("applyScaleImage", applyScaleImage);
+    cv::imshow("applyIlluminationImage", applyIlluminationImage);
+    cv::imshow("applyProjectiveImage", applyProjectiveImage);
     cv::waitKey(0);
 
     return 0;

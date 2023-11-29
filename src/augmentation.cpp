@@ -68,7 +68,7 @@ void applyScale(cv::Mat &image)
     // Randomizer
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(13, 20);
+    std::uniform_int_distribution<> distr(13, 17);
 
     double factor = distr(gen) / 10.0;
 
@@ -103,13 +103,10 @@ void applyProjective(cv::Mat &image)
     // Randomizer
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(0, 30);
+    std::uniform_int_distribution<> distr(10, 40);
 
     int topLY = distr(gen);
-    int topLX = distr(gen);
-    int topRY = distr(gen);
     int topRX = distr(gen);
-    int botLY = distr(gen);
     int botLX = distr(gen);
     int botRY = distr(gen);
     int botRX = distr(gen);
@@ -123,16 +120,29 @@ void applyProjective(cv::Mat &image)
 
     // Destination points
     std::vector<cv::Point2f> dstPoints;
-    dstPoints.push_back(cv::Point2f(topLY, topLX));
-    dstPoints.push_back(cv::Point2f(image.cols - topRY, topRX));
-    dstPoints.push_back(cv::Point2f(botLY, image.rows - botLX));
-    dstPoints.push_back(cv::Point2f(image.cols - botRY, image.rows - botRX));
+    dstPoints.push_back(cv::Point2f(0, topLY));
+    dstPoints.push_back(cv::Point2f(image.cols - topRX, 0));
+    dstPoints.push_back(cv::Point2f(botLX, image.rows - 1));
+    dstPoints.push_back(cv::Point2f(image.cols - botRX, image.rows - botRY));
 
     // Get the Perspective Transform Matrix i.e. M
     cv::Mat warpMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
 
     // Apply the perspective transformation to the image
-    cv::warpPerspective(image, image, warpMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+    cv::warpPerspective(image, image, warpMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
+}
+
+void putTextCentered(cv::Mat &img, const std::string &text, int y)
+{
+    int fontFace = cv::FONT_HERSHEY_COMPLEX;
+    double fontScale = 0.8;
+    int thickness = 1;
+    int baseline = 0;
+
+    cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, &baseline);
+    cv::Point textOrigin((img.cols - textSize.width) / 2, y);
+
+    cv::putText(img, text, textOrigin, fontFace, fontScale, CV_RGB(255, 255, 255), thickness);
 }
 
 int main(int argc, char *argv[])
@@ -186,6 +196,41 @@ int main(int argc, char *argv[])
     ImageUtils::SaveImages(filePath, images, augmentations);
 
     // Wait for a key press indefinitely (useful for viewing the result)
+    applyProjective(applyProjectiveImage);
+
+    std::vector<cv::Mat> images;
+    images.push_back(image);
+    images.push_back(applyRotateImage);
+    images.push_back(applyBlurImage);
+    images.push_back(applyContrastImage);
+    images.push_back(applyScaleImage);
+    images.push_back(applyIlluminationImage);
+    images.push_back(applyProjectiveImage);
+
+    int imageCount = 7;
+    int titleOffset = 35;
+    cv::Size imageSize = image.size();
+    cv::Size displaySize(imageSize.width, imageSize.height + titleOffset);
+    cv::Mat bigImage(displaySize.height, displaySize.width * imageCount, image.type(), cv::Scalar::all(0));
+
+    std::string titles[] = {
+        "Original", "Rotation", "Blur",
+        "Contrast", "Scaling", "Illumination", "Projective"};
+
+    for (int i = 0; i < imageCount; ++i)
+    {
+        cv::Rect roi(i * displaySize.width, titleOffset, imageSize.width, imageSize.height);
+        cv::Mat targetROI = bigImage(roi);
+
+        images[i].copyTo(targetROI);
+
+        cv::Rect titleRegion(roi.x, 0, displaySize.width, titleOffset);
+        cv::Mat titleROI = bigImage(titleRegion);
+        putTextCentered(titleROI, titles[i], titleOffset - 10);
+    }
+
+    // Show the big image with titles
+    cv::imshow("All Images", bigImage);
     cv::waitKey(0);
 
     return 0;

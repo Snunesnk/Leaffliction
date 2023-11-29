@@ -2,12 +2,11 @@
 #include <filesystem>
 #include <string>
 #include <vector>
-#include <sstream>
 
-std::string checkImagesInDirectory(const std::string &directoryPath, std::string informations = "", size_t deepness = 0)
+std::string checkImagesInDirectory(const std::string& directoryPath, std::string informations = "", size_t deepness = 0)
 {
     size_t imageCount = 0;
-    for (const auto &entry : std::filesystem::directory_iterator(directoryPath))
+    for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
     {
         std::filesystem::path entryPath = entry.path();
         std::string DirectoryName = entryPath.filename().generic_string();
@@ -37,7 +36,7 @@ std::string checkImagesInDirectory(const std::string &directoryPath, std::string
         else if (std::filesystem::is_regular_file(entryPath))
         {
             std::string fileName = entryPath.filename().generic_string();
-
+            
             size_t pos = fileName.find('.');
             if (pos != std::string::npos)
             {
@@ -69,7 +68,7 @@ std::string checkImagesInDirectory(const std::string &directoryPath, std::string
 }
 
 // Fonction pour extraire les paires clé-valeur d'une chaîne
-std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(const std::string &str)
+std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(const std::string& str)
 {
     std::vector<std::pair<std::string, std::string>> result;
     std::istringstream ss(str);
@@ -77,8 +76,7 @@ std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(
     std::string segment;
     while (std::getline(ss, segment, ','))
     {
-        try
-        {
+        try {
             size_t value = std::stoi(segment);
             for (auto it = result.end() - 1; it >= result.begin(); --it)
             {
@@ -89,19 +87,17 @@ std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(
                 }
             }
         }
-        catch (const std::invalid_argument &)
-        {
+        catch (const std::invalid_argument&) {
             result.emplace_back(segment, "");
         }
-        catch (const std::out_of_range &)
-        {
+        catch (const std::out_of_range&) {
             result.emplace_back(segment, "");
-        }
+        }      
     }
     return result;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     if (argc != 2)
     {
@@ -116,19 +112,19 @@ int main(int argc, char *argv[])
 
     std::vector<std::pair<std::string, std::string>> output_pair = extractKeyValuePairsFromString(output_str);
 
-    for (const auto &pair : output_pair)
-    {
+    for (const auto& pair : output_pair) {
         std::cout << "[" << pair.first << "," << pair.second << "]" << std::endl;
     }
     output_pair.erase(output_pair.begin());
 
-    std::vector<std::string> colors = {"blue", "green", "red", "cyan", "magenta", "yellow", "purple", "orange", "pink", "brown", "gray"};
+
+    std::vector<std::string> colors = { "blue", "green", "red", "cyan", "magenta", "yellow", "purple", "orange", "pink", "brown", "gray" };
+
 
     // Construire la commande Python dans une chaîne de caractères
     std::string pythonCommand = "python -c \"import matplotlib.pyplot as plt; import ast; data = ast.literal_eval('[";
 
-    for (const auto &pair : output_pair)
-    {
+    for (const auto& pair : output_pair) {
         pythonCommand += "(\\\"" + pair.first + "\\\", " + pair.second + ",),";
     }
     // Supprimer la virgule finale
@@ -137,8 +133,7 @@ int main(int argc, char *argv[])
     // Ajouter le reste de la commande Python avec des couleurs aléatoires
     pythonCommand += "]'); keys, values = zip(*data); plt.figure(figsize=(14, 7)); plt.bar(keys, values, color=[";
 
-    for (size_t i = 0; i < output_pair.size(); ++i)
-    {
+    for (size_t i = 0; i < output_pair.size(); ++i) {
         pythonCommand += "\\\"" + colors[i % colors.size()] + "\\\", ";
     }
 
@@ -150,8 +145,7 @@ int main(int argc, char *argv[])
 
     pythonCommand += "plt.figure(figsize=(7, 7)); plt.pie(values, labels = keys, colors = [";
 
-    for (size_t i = 0; i < output_pair.size(); ++i)
-    {
+    for (size_t i = 0; i < output_pair.size(); ++i) {
         pythonCommand += "\\\"" + colors[i % colors.size()] + "\\\", ";
     }
 
@@ -163,11 +157,11 @@ int main(int argc, char *argv[])
 
     pythonCommand += "plt.show()\"  &";
 
+    
     // Exécuter la commande Python depuis C++
     if (std::system(pythonCommand.c_str()) != 0)
     {
-        std::cout << pythonCommand << std::endl
-                  << std::endl;
+        std::cout << pythonCommand << std::endl << std::endl;
     }
 
     return 0;

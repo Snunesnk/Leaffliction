@@ -76,6 +76,40 @@ void applyPreserveMaskedRegion(cv::Mat& image, cv::Scalar objectColorLower, cv::
     cv::addWeighted(originalImage, 1.0, image, 0.0, 0.0, image);
 }
 
+// Fonction pour compter le nombre de pixels dans neuf plages de couleurs
+std::vector<int> countPixelsInColorRanges(const cv::Mat& image) {
+    // Convertir l'image en HSV
+    cv::Mat hsvImage;
+    cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+
+    // Diviser l'espace des couleurs en neuf parties
+    int hRanges = 3;
+    int sRanges = 3;
+    int vRanges = 3;
+
+    int hStep = 180 / hRanges;
+    int sStep = 256 / sRanges;
+    int vStep = 256 / vRanges;
+
+    std::vector<int> counts(hRanges * sRanges * vRanges, 0);
+
+    // Parcourir l'image et compter les pixels dans chaque plage
+    for (int y = 0; y < hsvImage.rows; ++y) {
+        for (int x = 0; x < hsvImage.cols; ++x) {
+            cv::Vec3b hsvPixel = hsvImage.at<cv::Vec3b>(y, x);
+
+            int hIndex = hsvPixel[0] / hStep;
+            int sIndex = hsvPixel[1] / sStep;
+            int vIndex = hsvPixel[2] / vStep;
+
+            int index = hIndex * sRanges * vRanges + sIndex * vRanges + vIndex;
+            counts[index]++;
+        }
+    }
+
+    return counts;
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <directory_path>" << std::endl;

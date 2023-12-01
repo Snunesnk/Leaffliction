@@ -31,15 +31,15 @@ void applyEqualizeHistogram(cv::Mat& image) {
 	cv::equalizeHist(image, image);
 }
 
-// Applies adaptive thresholding to the grayscale image
-void applyBinarisationSimple(cv::Mat& inputOutputImage, int seuil) {
-	// Assurez-vous que l'image est en niveaux de gris (échelle de gris)
+// Adaptive thresholding to the grayscale image
+void applySimpleBinarization(cv::Mat& inputOutputImage, int threshold) {
+	// Ensure the image is in grayscale
 	if (inputOutputImage.channels() > 1) {
 		cv::cvtColor(inputOutputImage, inputOutputImage, cv::COLOR_BGR2GRAY);
 	}
 
-	// Appliquer la binarisation
-	cv::threshold(inputOutputImage, inputOutputImage, seuil, 255, cv::THRESH_BINARY);
+	// Apply binarization
+	cv::threshold(inputOutputImage, inputOutputImage, threshold, 255, cv::THRESH_BINARY);
 }
 
 // Detects keypoints with ORB descriptors and draws them on the image
@@ -55,31 +55,14 @@ void applyDetectORBKeyPoints(cv::Mat& image) {
 	cv::drawKeypoints(image, keypoints, image, cv::Scalar(255, 0, 0), cv::DrawMatchesFlags::DRAW_OVER_OUTIMG);
 }
 
-// Applique un filtre en fonction de la luminosité des pixels
-void applyBrightnessFilter(cv::Mat& image, double seuil) {
-	// Assurez-vous que l'image est en niveaux de gris (échelle de gris)
-	if (image.channels() > 1) {
-		cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-	}
-
-	// Parcourez l'image et remplacez les pixels lumineux par du blanc
-	for (int y = 0; y < image.rows; y++) {
-		for (int x = 0; x < image.cols; x++) {
-			if (image.at<uchar>(y, x) > seuil) {
-				image.at<uchar>(y, x) = 255; // Remplacez par du blanc (255)
-			}
-		}
-	}
-}
-
 // Function to calculate the proportion of pixels in an intensity range for each channel
 std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityRanges(const cv::Mat& image) {
 	cv::Mat hsvImage;
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
 
-	int intensityRanges = 256; // 256 intensity levels (0-255)
+	int intensityRanges = 256;
 
-	std::vector<std::vector<int>> intensityCounts(7, std::vector<int>(intensityRanges, 0)); // Seven vectors for seven channels
+	std::vector<std::vector<int>> intensityCounts(7, std::vector<int>(intensityRanges, 0));
 
 	int totalPixels = hsvImage.rows * hsvImage.cols;
 
@@ -113,7 +96,7 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 		}
 	}
 
-	std::vector<std::vector<std::pair<int, double>>> intensityProportions(7); // Seven vectors for seven channels
+	std::vector<std::vector<std::pair<int, double>>> intensityProportions(7);
 
 	// Calculate proportions for each channel
 	for (int i = 0; i < 7; ++i) {
@@ -190,34 +173,28 @@ int main(int argc, char* argv[]) {
 		cv::Mat applyConvertToGrayScaleImage = image.clone();
 		cv::Mat applyGreenFilteringImage = image.clone();
 		cv::Mat applyEqualizeHistogramImage = image.clone();
-		cv::Mat applyBinarisationSimpleImage = image.clone();
+		cv::Mat applySimpleBinarizationImage = image.clone();
 		cv::Mat applyDetectORBKeyPointsImage = image.clone();
 		cv::Mat applyRedFilteringRedImage = image.clone();
-		cv::Mat applyBrightnessFilterImage = image.clone();
-
 
 		applyConvertToGrayScale(applyConvertToGrayScaleImage);
 		cv::Scalar lowerGreen = cv::Scalar(21, 0, 0); // Low HSV range for greens
 		cv::Scalar upperGreen = cv::Scalar(90, 255, 255); // High HSV range for greens
 		applyColorFiltering(applyGreenFilteringImage, lowerGreen, upperGreen, cv::Scalar(0, 255, 0));
 		applyEqualizeHistogram(applyEqualizeHistogramImage);
-		applyBinarisationSimple(applyBinarisationSimpleImage, 128);
+		applySimpleBinarization(applySimpleBinarizationImage, 128);
 		applyDetectORBKeyPoints(applyDetectORBKeyPointsImage);
 		cv::Scalar lowerRed = cv::Scalar(0, 50, 50); // Low HSV range for reds
 		cv::Scalar upperRed = cv::Scalar(20, 255, 255); // High HSV range for reds
 		applyColorFiltering(applyRedFilteringRedImage, lowerRed, upperRed, cv::Scalar(0, 0, 255));
-		double alpha = 0.5; // Facteur d'éclaircissement
-		double beta = 30;  // Valeur à ajouter à chaque pixel
-		applyBrightnessFilter(applyBrightnessFilterImage, 128);
 
 		cv::imshow("image", image);
 		cv::imshow("applyConvertToGrayScaleImage", applyConvertToGrayScaleImage);
 		cv::imshow("applyGreenFilteringImage", applyGreenFilteringImage);
 		cv::imshow("applyEqualizeHistogramImage", applyEqualizeHistogramImage);
-		cv::imshow("applyBinarisationSimpleImage", applyBinarisationSimpleImage);
+		cv::imshow("applySimpleBinarizationImage", applySimpleBinarizationImage);
 		cv::imshow("applyDetectORBKeyPointsImage", applyDetectORBKeyPointsImage);
 		cv::imshow("applyRedFilteringRedImage", applyRedFilteringRedImage);
-		cv::imshow("applyBrightnessFilterImage", applyBrightnessFilterImage);
 
 		cv::waitKey(1);
 
@@ -229,7 +206,6 @@ int main(int argc, char* argv[]) {
 		cv::waitKey(0);
 	}
 	catch (const std::exception& e) {
-		// Gérer les exceptions et afficher les messages d'erreur
 		std::cerr << e.what() << std::endl;
 		return 1;
 	}

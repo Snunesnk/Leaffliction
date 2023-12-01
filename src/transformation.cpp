@@ -1,103 +1,42 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+
 #include <opencv2/opencv.hpp>
 
-// Converts the image to grayscale
-void applyConvertToGrayScale(cv::Mat& image) {
-	cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-}
-
-// Applies a color filter for segmentation
-void applyColorFiltering(cv::Mat& image, cv::Scalar lowerBound, cv::Scalar upperBound, cv::Scalar color) {
-	// Convert the image to the HSV color space
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-
-	// Create a mask for the specified color range
-	cv::Mat colorMask;
-	cv::inRange(hsvImage, lowerBound, upperBound, colorMask);
-
-	// Set the color for the parts of the image that match the mask
-	image.setTo(color, colorMask);
-}
-
-// Equalizes the histogram of the grayscale image
-void applyEqualizeHistogram(cv::Mat& image) {
-	// Convert the image to grayscale
-	cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-
-	// Equalize the histogram
-	cv::equalizeHist(image, image);
-}
-
-// Adaptive thresholding to the grayscale image
-void applySimpleBinarization(cv::Mat& inputOutputImage, int threshold) {
-	// Ensure the image is in grayscale
-	if (inputOutputImage.channels() > 1) {
-		cv::cvtColor(inputOutputImage, inputOutputImage, cv::COLOR_BGR2GRAY);
-	}
-
-	// Apply binarization
-	cv::threshold(inputOutputImage, inputOutputImage, threshold, 255, cv::THRESH_BINARY);
-}
-
-// Detects keypoints with ORB descriptors and draws them on the image
-void applyDetectORBKeyPoints(cv::Mat& image) {
-	// Create an ORB detector
-	cv::Ptr<cv::ORB> orb = cv::ORB::create();
-
-	// Detect keypoints
-	std::vector<cv::KeyPoint> keypoints;
-	orb->detect(image, keypoints);
-
-	// Draw keypoints on the image
-	cv::drawKeypoints(image, keypoints, image, cv::Scalar(255, 0, 0), cv::DrawMatchesFlags::DRAW_OVER_OUTIMG);
-}
+#include "image_processing.h"
 
 // Function to calculate the proportion of pixels in an intensity range for each channel
 std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityRanges(const cv::Mat& image) {
 	cv::Mat hsvImage;
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-
 	int intensityRanges = 256;
-
 	std::vector<std::vector<int>> intensityCounts(7, std::vector<int>(intensityRanges, 0));
-
 	int totalPixels = hsvImage.rows * hsvImage.cols;
-
 	for (int y = 0; y < hsvImage.rows; ++y) {
 		for (int x = 0; x < hsvImage.cols; ++x) {
 			cv::Vec3b hsvPixel = hsvImage.at<cv::Vec3b>(y, x);
-
 			// Extract values from each channel
 			int hue = hsvPixel[0];
 			int saturation = hsvPixel[1];
 			int value = hsvPixel[2];
-
 			// Increment the intensity count for each channel
 			intensityCounts[0][hue]++;
 			intensityCounts[1][saturation]++;
 			intensityCounts[2][value]++;
-
 			// Extract values from Blue, Green and Red channels (BGR)
 			int blue = image.at<cv::Vec3b>(y, x)[0]; // Blue channel
 			int green = image.at<cv::Vec3b>(y, x)[1]; // Green channel
 			int red = image.at<cv::Vec3b>(y, x)[2]; // Red channel
-
 			intensityCounts[3][blue]++;
 			intensityCounts[4][green]++;
 			intensityCounts[5][red]++;
-
 			// Extract value for luminosity (average of RGB)
 			int luminosity = (green + red + blue) / 3;
-
 			intensityCounts[6][luminosity]++;
 		}
 	}
-
 	std::vector<std::vector<std::pair<int, double>>> intensityProportions(7);
-
 	// Calculate proportions for each channel
 	for (int i = 0; i < 7; ++i) {
 		for (int j = 0; j < intensityRanges; ++j) {
@@ -105,7 +44,6 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 			intensityProportions[i].push_back(std::make_pair(j, proportion));
 		}
 	}
-
 	return intensityProportions;
 }
 
@@ -113,19 +51,15 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>& proportions) {
 	// Create and open a text file for writing
 	std::ofstream pythonScript("script.py");
-
 	// Verify if the Python file was successfully created
 	if (!pythonScript.is_open()) {
 		throw std::runtime_error("Erreur : Impossible de créer le fichier Python (script.py).");
 	}
-
 	std::vector<std::string> channels = { "hue", "saturation", "value", "blue", "green", "red", "lightness" };
 	std::vector<std::string> colors = { "purple", "cyan", "orange", "blue", "green", "red", "gray" };
-
 	pythonScript << "import matplotlib.pyplot as plt\n";
 	pythonScript << "import numpy as np\n";
 	pythonScript << "plt.figure(figsize=(9, 7))\n";
-
 	// Iterate through the proportions and add data for each channel
 	for (int i = 0; i < proportions.size(); ++i) {
 		pythonScript << "data" << i << " = np.array([";
@@ -137,13 +71,11 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 		pythonScript << "proportion_values" << i << " = data" << i << "[:, 1]\n";
 		pythonScript << "plt.plot(intensities" << i << ", proportion_values" << i << ", label='" << channels[i] << "', color='" << colors[i] << "', alpha=0.5)\n";
 	}
-
 	pythonScript << "plt.legend(loc='upper right')\n";
 	pythonScript << "plt.xlabel('Pixel intensity')\n";
 	pythonScript << "plt.ylabel('Proportion of pixels (%)')\n";
 	pythonScript << "plt.show()";
 	pythonScript.close();
-
 	// Execute the Python command
 	if (system("python script.py &") != 0) {
 		throw std::runtime_error("Error: Failed to execute the Python command.");
@@ -157,37 +89,31 @@ int main(int argc, char* argv[]) {
 			std::cerr << "Usage: " << argv[0] << " <directory_path>" << std::endl;
 			return 1;
 		}
-
 		std::string filePath = argv[1];
 		filePath += "/Apple_Black_rot/image (1).JPG";
-
 		// Load an image from a JPEG file
 		cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
-
 		// Check if the image was loaded successfully
 		if (image.empty()) {
 			std::cerr << "Unable to load the image." << std::endl;
 			return -1;
 		}
-
 		cv::Mat applyConvertToGrayScaleImage = image.clone();
 		cv::Mat applyGreenFilteringImage = image.clone();
 		cv::Mat applyEqualizeHistogramImage = image.clone();
 		cv::Mat applySimpleBinarizationImage = image.clone();
 		cv::Mat applyDetectORBKeyPointsImage = image.clone();
 		cv::Mat applyRedFilteringRedImage = image.clone();
-
-		applyConvertToGrayScale(applyConvertToGrayScaleImage);
+		ImageProcessing::applyConvertToGrayScale(applyConvertToGrayScaleImage);
 		cv::Scalar lowerGreen = cv::Scalar(21, 0, 0); // Low HSV range for greens
 		cv::Scalar upperGreen = cv::Scalar(90, 255, 255); // High HSV range for greens
-		applyColorFiltering(applyGreenFilteringImage, lowerGreen, upperGreen, cv::Scalar(0, 255, 0));
-		applyEqualizeHistogram(applyEqualizeHistogramImage);
-		applySimpleBinarization(applySimpleBinarizationImage, 128);
-		applyDetectORBKeyPoints(applyDetectORBKeyPointsImage);
+		ImageProcessing::applyColorFiltering(applyGreenFilteringImage, lowerGreen, upperGreen, cv::Scalar(0, 255, 0));
+		ImageProcessing::applyEqualizeHistogram(applyEqualizeHistogramImage);
+		ImageProcessing::applySimpleBinarization(applySimpleBinarizationImage, 128);
+		ImageProcessing::applyDetectORBKeyPoints(applyDetectORBKeyPointsImage);
 		cv::Scalar lowerRed = cv::Scalar(0, 50, 50); // Low HSV range for reds
 		cv::Scalar upperRed = cv::Scalar(20, 255, 255); // High HSV range for reds
-		applyColorFiltering(applyRedFilteringRedImage, lowerRed, upperRed, cv::Scalar(0, 0, 255));
-
+		ImageProcessing::applyColorFiltering(applyRedFilteringRedImage, lowerRed, upperRed, cv::Scalar(0, 0, 255));
 		cv::imshow("image", image);
 		cv::imshow("applyConvertToGrayScaleImage", applyConvertToGrayScaleImage);
 		cv::imshow("applyGreenFilteringImage", applyGreenFilteringImage);
@@ -195,14 +121,11 @@ int main(int argc, char* argv[]) {
 		cv::imshow("applySimpleBinarizationImage", applySimpleBinarizationImage);
 		cv::imshow("applyDetectORBKeyPointsImage", applyDetectORBKeyPointsImage);
 		cv::imshow("applyRedFilteringRedImage", applyRedFilteringRedImage);
-
 		cv::waitKey(1);
-
 		// Call the function to calculate intensity proportions
 		std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(image);
 		// Call the function generate the graph
 		generateGraphScript(proportions);
-
 		cv::waitKey(0);
 	}
 	catch (const std::exception& e) {

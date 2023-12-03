@@ -14,7 +14,7 @@ OBJECTS = $(PROGRAMS:%=%.o)
 
 all: $(PROGRAMS)
 
-%: src/%.cpp src/utils.cpp src/calculate.cpp
+%: src/%.cpp src/utils.cpp src/calculate.cpp src/image_processing.cpp src/image_utils.cpp
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean:

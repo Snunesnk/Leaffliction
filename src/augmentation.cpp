@@ -3,19 +3,6 @@
 #include "image_processing.h"
 #include "image_utils.h"
 
-void putTextCentered(cv::Mat &img, const std::string &text, int y)
-{
-    int fontFace = cv::FONT_HERSHEY_COMPLEX;
-    double fontScale = 0.8;
-    int thickness = 1;
-    int baseline = 0;
-
-    cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, &baseline);
-    cv::Point textOrigin((img.cols - textSize.width) / 2, y);
-
-    cv::putText(img, text, textOrigin, fontFace, fontScale, CV_RGB(255, 255, 255), thickness);
-}
-
 /// Possibility to give an image path or a dir path
 /// If image path, then apply augmentation to image and show it
 /// If dir path, apply augmentation to all images but do not show it

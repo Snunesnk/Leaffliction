@@ -1,5 +1,18 @@
 #include "image_utils.h"
 
+void putTextCentered(cv::Mat &img, const std::string &text, int y)
+{
+	int fontFace = cv::FONT_HERSHEY_COMPLEX;
+	double fontScale = 0.8;
+	int thickness = 1;
+	int baseline = 0;
+
+	cv::Size textSize = cv::getTextSize(text, fontFace, fontScale, thickness, &baseline);
+	cv::Point textOrigin((img.cols - textSize.width) / 2, y);
+
+	cv::putText(img, text, textOrigin, fontFace, fontScale, CV_RGB(255, 255, 255), thickness);
+}
+
 // Fonction pour cr�er une mosa�que d'images
 void ImageUtils::CreateImageMosaic(std::vector<cv::Mat> images, std::string name)
 {
@@ -7,7 +20,7 @@ void ImageUtils::CreateImageMosaic(std::vector<cv::Mat> images, std::string name
 	int titleOffset = 35;
 	cv::Size imageSize = images[0].size();
 	cv::Size displaySize(imageSize.width, imageSize.height + titleOffset);
-	cv::Mat bigImage(displaySize.height, displaySize.width * imageCount, image.type(), cv::Scalar::all(0));
+	cv::Mat bigImage(displaySize.height, displaySize.width * imageCount, images[0].type(), cv::Scalar::all(0));
 
 	std::string titles[] = {
 		"Original", "Rotation", "Blur",
@@ -27,6 +40,7 @@ void ImageUtils::CreateImageMosaic(std::vector<cv::Mat> images, std::string name
 
 	// Show the big image with titles
 	cv::imshow(name, bigImage);
+	cv::waitKey(0);
 }
 
 void ImageUtils::SaveImages(const std::string &filePath, const std::vector<cv::Mat> &images, const std::vector<std::string> &types)

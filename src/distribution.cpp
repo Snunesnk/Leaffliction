@@ -1,7 +1,5 @@
 #include <iostream>
-#include <filesystem>
-#include <string>
-#include <vector>
+#include "image_utils.h"
 
 std::string checkImagesInDirectory(const std::string& directoryPath, std::string informations = "", size_t deepness = 0)
 {

@@ -1,43 +1,54 @@
 #include <iostream>
 #include <fstream>
-#include <vector>
-#include <opencv2/opencv.hpp>
 #include "image_processing.h"
+#include "image_utils.h"
 
 int main(int argc, char* argv[])
 {
-	if (argc != 2)
-	{
-		std::cerr << "Usage: " << argv[0] << " <directory_path>" << std::endl;
-		return 1;
-	}
-	std::string filePath = argv[1];
-	filePath += "/Apple_Black_rot/image (56).JPG";
-	cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
-	if (image.empty())
-	{
-		std::cerr << "Unable to load the image." << std::endl;
-		return -1;
-	}
-	cv::Mat applyRotateImage = image.clone();
-	cv::Mat applyBlurImage = image.clone();
-	cv::Mat applyContrastImage = image.clone();
-	cv::Mat applyScaleImage = image.clone();
-	cv::Mat applyIlluminationImage = image.clone();
-	cv::Mat applyProjectiveImage = image.clone();
-	ImageProcessing::applyRotate(applyRotateImage, 10.0);
-	ImageProcessing::applyBlur(applyBlurImage, 3.0);
-	ImageProcessing::applyContrast(applyContrastImage, 1.5);
-	ImageProcessing::applyScale(applyScaleImage, 1.5);
-	ImageProcessing::applyIllumination(applyIlluminationImage, 30);
-	ImageProcessing::applyProjective(applyProjectiveImage);
-	cv::imshow("image", image);
-	cv::imshow("applyRotateImage", applyRotateImage);
-	cv::imshow("applyBlurImage", applyBlurImage);
-	cv::imshow("applyContrastImage", applyContrastImage);
-	cv::imshow("applyScaleImage", applyScaleImage);
-	cv::imshow("applyIlluminationImage", applyIlluminationImage);
-	cv::imshow("applyProjectiveImage", applyProjectiveImage);
-	cv::waitKey(0);
-	return 0;
+    // Get the directory path from the command-line argument
+    if (argc != 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " <directory_path>" << std::endl;
+        return 1;
+    }
+    std::string filePath = argv[1];
+
+#ifdef _MSC_VER
+    filePath = "images/Apple_Black_rot/image (56).JPG";
+#endif
+
+    // Load an image from the specified file path
+    cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
+    if (image.empty())
+    {
+        std::cerr << "Unable to load the image." << std::endl;
+        return -1;
+    }
+
+    // Create a vector to store multiple copies of the loaded image
+    std::vector<cv::Mat> images;
+    for (int i = 0; i < 7; i++) {
+        images.push_back(image.clone());
+    }
+
+    // Apply various image processing operations to different copies of the image
+    ImageProcessing::Rotate(images[1], 5.0, 45.0);
+    ImageProcessing::Blur(images[2], 2.5, 3.5);
+    ImageProcessing::Contrast(images[3], 1.25, 1.75);
+    ImageProcessing::Scale(images[4], 1.25, 1.75);
+    ImageProcessing::Illumination(images[5], 25, 35);
+    ImageProcessing::Projective(images[6], 15, 30);
+
+    // Create a mosaic image from the processed images
+    ImageUtils::CreateImageMosaic(images, "Augmentations");
+
+    // Save the processed images with their respective augmentation names
+    images.erase(images.begin());
+    std::vector<std::string> augmentations = { "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" }; 
+    ImageUtils::SaveImages(filePath, images, augmentations);
+
+    // Wait for a key press indefinitely (useful for viewing the result)
+    cv::waitKey(0);
+
+    return 0;
 }

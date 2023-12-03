@@ -37,9 +37,9 @@ int main(int argc, char *argv[])
 
     // Apply various image processing operations to different copies of the image
     ImageProcessing::Rotate(images[1], 5.0, 45.0);
-    ImageProcessing::Blur(images[2], 2.5, 3.5);
-    ImageProcessing::Contrast(images[3], 1.25, 1.75);
-    ImageProcessing::Scale(images[4], 1.25, 1.75);
+    ImageProcessing::Blur(images[2], 25, 35);
+    ImageProcessing::Contrast(images[3], 125, 175);
+    ImageProcessing::Scale(images[4], 125, 175);
     ImageProcessing::Illumination(images[5], 25, 35);
     ImageProcessing::Projective(images[6], 15, 30);
 

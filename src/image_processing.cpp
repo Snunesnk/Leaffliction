@@ -27,7 +27,7 @@ void ImageProcessing::Blur(cv::Mat &image, double minDistr, double maxDistr)
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_int_distribution<> distr(minDistr, maxDistr);
-	int sigma = distr(gen);
+	double sigma = distr(gen) / 10;
 	cv::GaussianBlur(image, image, cv::Size(0, 0), sigma);
 }
 
@@ -36,7 +36,7 @@ void ImageProcessing::Contrast(cv::Mat &image, double minDistr, double maxDistr)
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_int_distribution<> distr(minDistr, maxDistr);
-	int alpha = distr(gen);
+	double alpha = distr(gen) / 100;
 	image.convertTo(image, -1, alpha, 0);
 }
 
@@ -45,7 +45,7 @@ void ImageProcessing::Scale(cv::Mat &image, double minDistr, double maxDistr)
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_int_distribution<> distr(minDistr, maxDistr);
-	int factor = distr(gen);
+	double factor = distr(gen) / 100;
 	cv::Point2f center(image.cols / 2.0, image.rows / 2.0);
 	cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0.0, factor);
 	// Apply zoom to the original image

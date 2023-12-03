@@ -145,6 +145,9 @@ void putTextCentered(cv::Mat &img, const std::string &text, int y)
     cv::putText(img, text, textOrigin, fontFace, fontScale, CV_RGB(255, 255, 255), thickness);
 }
 
+/// Possibility to give an image path or a dir path
+/// If image path, then apply augmentation to image and show it
+/// If dir path, apply augmentation to all images but do not show it
 int main(int argc, char *argv[])
 {
     // Get the directory path from the command-line argument

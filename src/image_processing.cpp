@@ -34,7 +34,6 @@ void ImageProcessing::Contrast(cv::Mat& image, double minDistr, double maxDistr)
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
 	double alpha = distr(gen);
-	std::cout << minDistr << " " << maxDistr << " " << alpha << std::endl;
 	image.convertTo(image, -1, alpha, 0);
 }
 

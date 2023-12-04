@@ -35,3 +35,25 @@ void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::M
 		std::cout << "Saved : " << filename << std::endl;
 	}
 }
+
+std::vector<std::string> ImageUtils::GgetImagesInDirectory(const std::string& directoryPath) {
+	std::vector<std::string> images;
+	size_t imageCount = 0;
+	for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+		std::filesystem::path entryPath = entry.path();
+		if (std::filesystem::is_regular_file(entryPath)) {
+			std::string fileName = entryPath.filename().generic_string();
+			size_t pos = fileName.find('.');
+			if (pos != std::string::npos) {
+				std::string fileType = fileName.substr(pos, fileName.size());
+				if (fileType == ".JPG") {
+					images.push_back(fileName);
+					imageCount++;
+				}
+			}
+		}
+	}
+	std::cout << directoryPath << std::endl;
+	std::cout << imageCount << " files" << std::endl;
+	return images;
+}

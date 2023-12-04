@@ -3,28 +3,6 @@
 #include "image_processing.h"
 #include "image_utils.h"
 
-std::vector<std::string> getImagesInDirectory(const std::string& directoryPath) {
-	std::vector<std::string> images;
-	size_t imageCount = 0;
-	for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
-		std::filesystem::path entryPath = entry.path();
-		if (std::filesystem::is_regular_file(entryPath)) {
-			std::string fileName = entryPath.filename().generic_string();
-			size_t pos = fileName.find('.');
-			if (pos != std::string::npos) {
-				std::string fileType = fileName.substr(pos, fileName.size());
-				if (fileType == ".JPG") {
-					images.push_back(fileName);
-					imageCount++;
-				}
-			}
-		}
-	}
-	std::cout << directoryPath << std::endl;
-	std::cout << imageCount << " files" << std::endl;
-	return images;
-}
-
 // Function to calculate the proportion of pixels in an intensity range for each channel
 std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityRanges(const cv::Mat& image) {
 	int channelCount = 6;
@@ -174,7 +152,7 @@ int main(int argc, char* argv[]) {
 		if (destination.back() != '/') {
 			destination += "/";
 		}
-		std::vector<std::string> names = getImagesInDirectory(source);
+		std::vector<std::string> names = ImageUtils::GgetImagesInDirectory(source);
 		for (auto name : names) {
 			// Load an image from the specified file path
 			cv::Mat image = cv::imread(source + name, cv::IMREAD_COLOR);

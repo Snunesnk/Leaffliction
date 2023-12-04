@@ -62,7 +62,15 @@ int main(int argc, char* argv[]) {
 		// Create a mosaic image from the processed images
 		images.erase(images.begin());
 		labels.erase(labels.begin());
-		ImageUtils::SaveImages(source, images, labels);
+		// Check if source and destination are provided
+		if (destination.empty() || !std::filesystem::is_directory(destination)) {
+			ImageUtils::SaveImages(source, images, labels);
+		}
+		else {
+			const size_t lastSlashPosition = source.find_last_of('/');
+			const std::string name = source.substr(lastSlashPosition + 1);
+			ImageUtils::SaveImages(destination + name, images, labels);
+		}
 		cv::waitKey(0);
 	}
 	else {
@@ -101,7 +109,6 @@ int main(int argc, char* argv[]) {
 			// Create a mosaic image from the processed images
 			std::vector<std::string> labels = { "Original", "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" };
 			ImageUtils::SaveImages(destination + name, images, labels);
-			cv::waitKey(0);
 		}
 	}
 	return 0;

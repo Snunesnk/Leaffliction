@@ -153,12 +153,13 @@ int main(int argc, char* argv[]) {
 		ImageProcessing::ExtractSaturation(images[5], 96);
 		ImageProcessing::ExtractValue(images[6], 96);
 		// Create a mosaic image from the processed images
-		ImageUtils::CreateImageMosaic(images, "Transformation");
+		std::vector<std::string> labels = { "Original", "ColorFiltering", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
+		ImageUtils::CreateImageMosaic(images, "Transformation", labels);
 		cv::waitKey(1);
 		// Calculate intensity proportions and generate the graph
 		std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(image);
 		generateGraphScript(proportions);
-		// Wait for a key press indefinitely (useful for viewing the result)
+
 		cv::waitKey(0);
 	}
 	else {
@@ -196,8 +197,8 @@ int main(int argc, char* argv[]) {
 			ImageProcessing::ExtractSaturation(images[4], 128);
 			ImageProcessing::ExtractValue(images[5], 128);
 			// Save the processed images with their respective augmentation names
-			std::vector<std::string> transformations = { "ColorFiltering", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
-			ImageUtils::SaveImages(destination + name, images, transformations);
+			std::vector<std::string> labels = { "ColorFiltering", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
+			ImageUtils::SaveImages(destination + name, images, labels);
 			cv::waitKey(0);
 		}
 	}

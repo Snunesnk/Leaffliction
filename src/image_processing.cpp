@@ -6,7 +6,7 @@ void ImageProcessing::Rotate(cv::Mat& image, double minDistr, double maxDistr) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	int angle = distr(gen);
+	double angle = distr(gen);
 	// Calculate the size of the resulting image after rotation
 	cv::Rect boundingRect = cv::RotatedRect(cv::Point2f(image.cols / 2.0, image.rows / 2.0), image.size(), angle).boundingRect();
 	// Automatically calculate the scaling factor
@@ -25,7 +25,7 @@ void ImageProcessing::Blur(cv::Mat& image, double minDistr, double maxDistr) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	int sigma = distr(gen);
+	double sigma = distr(gen);
 	cv::GaussianBlur(image, image, cv::Size(0, 0), sigma);
 }
 
@@ -33,7 +33,8 @@ void ImageProcessing::Contrast(cv::Mat& image, double minDistr, double maxDistr)
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	int alpha = distr(gen);
+	double alpha = distr(gen);
+	std::cout << minDistr << " " << maxDistr << " " << alpha << std::endl;
 	image.convertTo(image, -1, alpha, 0);
 }
 
@@ -41,7 +42,7 @@ void ImageProcessing::Scale(cv::Mat& image, double minDistr, double maxDistr) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	int factor = distr(gen);
+	double factor = distr(gen);
 	cv::Point2f center(image.cols / 2.0, image.rows / 2.0);
 	cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0.0, factor);
 	// Apply zoom to the original image
@@ -52,7 +53,7 @@ void ImageProcessing::Illumination(cv::Mat& image, double minDistr, double maxDi
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	int brightness = distr(gen);
+	double brightness = distr(gen);
 	image += cv::Scalar(brightness, brightness, brightness);
 }
 
@@ -61,11 +62,11 @@ void ImageProcessing::Projective(cv::Mat& image, double minDistr, double maxDist
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	int topLY = distr(gen);
-	int topRX = distr(gen);
-	int botLX = distr(gen);
-	int botRY = distr(gen);
-	int botRX = distr(gen);
+	double topLY = distr(gen);
+	double topRX = distr(gen);
+	double botLX = distr(gen);
+	double botRY = distr(gen);
+	double botRX = distr(gen);
 	// Source points
 	std::vector<cv::Point2f> srcPoints;
 	srcPoints.push_back(cv::Point2f(0, 0));                           // Top-left corner

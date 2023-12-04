@@ -14,6 +14,9 @@ public:
 	static void ConvertToGrayScale(cv::Mat& image);
 	static void ColorFiltering(cv::Mat& image, cv::Scalar lowerBound, cv::Scalar upperBound, cv::Scalar color = { 255, 255, 255 });
 	static void EqualizeHistogram(cv::Mat& image);
+	static void EqualizeColorHistogram(cv::Mat& image);
+	static void EqualizeSaturationHistogram(cv::Mat& image);
+	static void EqualizeValueHistogram(cv::Mat& image);
 	static void SimpleBinarization(cv::Mat& inputOutputImage, int threshold);
 	static void DetectORBKeyPoints(cv::Mat& image);
 	static void ExtractHue(cv::Mat& image, double lower, double upper);
@@ -28,8 +31,7 @@ public:
 	static std::vector<cv::Point> getMinimumBoundingRectanglePoints(cv::Mat image);
 	static void cropImageWithPoints(cv::Mat& image, const std::vector<cv::Point>& points);
 	static double calculateAspectRatioOfObjects(cv::Mat image);
-	static void drawAndScaleRectangleFromPoints(cv::Mat& image, std::vector<cv::Point>& rectPoints);
-
+	static void CutShape(cv::Mat& image);
 };
 
 #endif

@@ -105,37 +105,49 @@ int main(int argc, char* argv[]) {
 		}
 	}
 #ifdef _MSC_VER
-	source = "images/Apple_scab/Image (42).JPG";
+	source = "images/Apple_Black_rot/";
 	destination = "images/test2";
 #endif
 	// Check if source is a .JPG file
 	if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
 		// Load an image from the specified file path
-		cv::Mat image = cv::imread(source, cv::IMREAD_COLOR);
-		if (image.empty()) {
+		cv::Mat originalImage = cv::imread(source, cv::IMREAD_COLOR);
+		if (originalImage.empty()) {
 			std::cerr << "Unable to load the image." << std::endl;
 			return -1;
 		}
-		// Create a vector to store multiple copies of the loaded image
+
 		std::vector<cv::Mat> images;
-		for (int i = 0; i < 7; i++) {
-			images.push_back(image.clone());
+		images.push_back(originalImage.clone());
+
+		ImageProcessing::EqualizeValueHistogram(originalImage);
+		ImageProcessing::EqualizeSaturationHistogram(originalImage);
+		ImageProcessing::CutShape(originalImage);
+		ImageProcessing::EqualizeValueHistogram(originalImage);
+		ImageProcessing::EqualizeSaturationHistogram(originalImage);
+
+		// Create a vector to store multiple copies of the processed image
+		for (int i = 0; i < 6; i++) {
+			images.push_back(originalImage.clone());
 		}
+
 		// Apply various image processing operations to different copies of the image
-		cv::Scalar lower_leaf_colors(10, 40, 20);
-		cv::Scalar upper_leaf_colors(100, 255, 255);
-		ImageProcessing::ColorFiltering(images[1], lower_leaf_colors, upper_leaf_colors);
+		images[1] = originalImage.clone();
+		ImageProcessing::SimpleBinarization(images[1], 254);
 		ImageProcessing::ExtractRedChannel(images[2]);
 		ImageProcessing::ExtractGreenChannel(images[3]);
 		ImageProcessing::ExtractBlueChannel(images[4]);
-		ImageProcessing::ExtractSaturation(images[5], 96);
-		ImageProcessing::ExtractValue(images[6], 96);
+		ImageProcessing::ExtractSaturation(images[5], 128);
+		ImageProcessing::ExtractValue(images[6], 128);
+
 		// Create a mosaic image from the processed images
-		std::vector<std::string> labels = { "Original", "ColorFiltering", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
+		std::vector<std::string> labels = { "Original", "Shape", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
 		ImageUtils::CreateImageMosaic(images, "Transformation", labels);
+
 		cv::waitKey(1);
+
 		// Calculate intensity proportions and generate the graph
-		std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(image);
+		std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(images[0]);
 		generateGraphScript(proportions);
 
 		cv::waitKey(0);
@@ -155,29 +167,36 @@ int main(int argc, char* argv[]) {
 		std::vector<std::string> names = ImageUtils::GgetImagesInDirectory(source);
 		for (auto name : names) {
 			// Load an image from the specified file path
-			cv::Mat image = cv::imread(source + name, cv::IMREAD_COLOR);
-			if (image.empty()) {
+			cv::Mat originalImage = cv::imread(source + name, cv::IMREAD_COLOR);
+			if (originalImage.empty()) {
 				std::cerr << "Unable to load the image." << std::endl;
 				return -1;
 			}
-			// Create a vector to store multiple copies of the loaded image
 			std::vector<cv::Mat> images;
+
+			ImageProcessing::EqualizeValueHistogram(originalImage);
+			ImageProcessing::EqualizeSaturationHistogram(originalImage);
+			ImageProcessing::CutShape(originalImage);
+			ImageProcessing::EqualizeValueHistogram(originalImage);
+			ImageProcessing::EqualizeSaturationHistogram(originalImage);
+
+			// Create a vector to store multiple copies of the loaded image
 			for (int i = 0; i < 6; i++) {
-				images.push_back(image.clone());
+				images.push_back(originalImage.clone());
 			}
+
 			// Apply various image processing operations to different copies of the image
-			cv::Scalar lower_leaf_colors(10, 85, 0);
-			cv::Scalar upper_leaf_colors(100, 255, 255);
-			ImageProcessing::ColorFiltering(images[0], lower_leaf_colors, upper_leaf_colors);
+			images[0] = originalImage.clone();
+			ImageProcessing::SimpleBinarization(images[0], 254);
 			ImageProcessing::ExtractRedChannel(images[1]);
 			ImageProcessing::ExtractGreenChannel(images[2]);
 			ImageProcessing::ExtractBlueChannel(images[3]);
 			ImageProcessing::ExtractSaturation(images[4], 128);
 			ImageProcessing::ExtractValue(images[5], 128);
+
 			// Save the processed images with their respective labels
-			std::vector<std::string> labels = { "ColorFiltering", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
+			std::vector<std::string> labels = { "Shape", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
 			ImageUtils::SaveImages(destination + name, images, labels);
-			cv::waitKey(0);
 		}
 	}
 	return 0;

@@ -125,6 +125,35 @@ void ImageProcessing::EqualizeHistogram(cv::Mat& image) {
 	image.copyTo(originalImage, image);
 }
 
+void ImageProcessing::EqualizeColorHistogram(cv::Mat& image) {
+	std::vector<cv::Mat> channels;
+	cv::split(image, channels);
+	for (int i = 0; i < channels.size(); i++) {
+		cv::equalizeHist(channels[i], channels[i]);
+	}
+	cv::merge(channels, image);
+}
+
+void ImageProcessing::EqualizeSaturationHistogram(cv::Mat& image) {
+	cv::Mat hsvImage;
+	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+	std::vector<cv::Mat> channels;
+	cv::split(hsvImage, channels);
+	cv::equalizeHist(channels[1], channels[1]);
+	cv::merge(channels, hsvImage);
+	cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
+}
+
+void ImageProcessing::EqualizeValueHistogram(cv::Mat& image) {
+	cv::Mat hsvImage;
+	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+	std::vector<cv::Mat> channels;
+	cv::split(hsvImage, channels);
+	cv::equalizeHist(channels[2], channels[2]);
+	cv::merge(channels, hsvImage);
+	cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
+}
+
 void ImageProcessing::SimpleBinarization(cv::Mat& inputOutputImage, int threshold) {
 	// Créez une copie de l'image d'origine en couleur
 	cv::Mat originalImage = inputOutputImage.clone();
@@ -171,10 +200,10 @@ void ImageProcessing::ExtractHue(cv::Mat& image, double lower, double upper) {
 			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
 				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
 				double hue = pixel[0];
-				if (hue > lower && hue < upper) {
-					pixel[0] = 255;
-					pixel[1] = 255;
-					pixel[2] = 255;
+				if (hue >= lower && hue <= upper) {
+					pixel[0] = 0;
+					pixel[1] = 0;
+					pixel[2] = 0;
 				}
 			}
 		}
@@ -189,10 +218,10 @@ void ImageProcessing::ExtractSaturation(cv::Mat& image, double threshold) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
 			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
 				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-				if (hsvpixel[1] < threshold) {
-					pixel[0] = 255;
-					pixel[1] = 255;
-					pixel[2] = 255;
+				if (hsvpixel[1] <= threshold) {
+					pixel[0] = 0;
+					pixel[1] = 0;
+					pixel[2] = 0;
 				}
 			}
 		}
@@ -207,10 +236,10 @@ void ImageProcessing::ExtractValue(cv::Mat& image, double threshold) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
 			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
 				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-				if (hsvpixel[2] < threshold) {
-					pixel[0] = 255;
-					pixel[1] = 255;
-					pixel[2] = 255;
+				if (hsvpixel[2] >= threshold) {
+					pixel[0] = 0;
+					pixel[1] = 0;
+					pixel[2] = 0;
 				}
 			}
 		}
@@ -223,21 +252,11 @@ void ImageProcessing::ExtractRedChannel(cv::Mat& image) {
 		for (int j = 0; j < image.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
 			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
-				pixel[0] = 255;
-				pixel[1] = 255;
-				pixel[2] = 255 - pixel[2];
+				pixel[0] = 0;
+				pixel[1] = 0;
 			}
 		}
 	}
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-	for (int i = 0; i < hsvImage.rows; i++) {
-		for (int j = 0; j < hsvImage.cols; j++) {
-			cv::Vec3b& pixel = hsvImage.at<cv::Vec3b>(i, j);
-			pixel[0] = (pixel[0] + 90) % 180;
-		}
-	}
-	cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
 }
 
 void ImageProcessing::ExtractGreenChannel(cv::Mat& image) {
@@ -246,21 +265,11 @@ void ImageProcessing::ExtractGreenChannel(cv::Mat& image) {
 		for (int j = 0; j < image.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
 			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
-				pixel[0] = 255;
-				pixel[1] = 255 - pixel[1];
-				pixel[2] = 255;
+				pixel[0] = 0;
+				pixel[2] = 0;
 			}
 		}
 	}
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-	for (int i = 0; i < hsvImage.rows; i++) {
-		for (int j = 0; j < hsvImage.cols; j++) {
-			cv::Vec3b& pixel = hsvImage.at<cv::Vec3b>(i, j);
-			pixel[0] = (pixel[0] + 90) % 180;
-		}
-	}
-	cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
 }
 
 void ImageProcessing::ExtractBlueChannel(cv::Mat& image) {
@@ -269,21 +278,11 @@ void ImageProcessing::ExtractBlueChannel(cv::Mat& image) {
 		for (int j = 0; j < image.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
 			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
-				pixel[0] = 255 - pixel[0];
-				pixel[1] = 255;
-				pixel[2] = 255;
+				pixel[1] = 0;
+				pixel[2] = 0;
 			}
 		}
 	}
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-	for (int i = 0; i < hsvImage.rows; i++) {
-		for (int j = 0; j < hsvImage.cols; j++) {
-			cv::Vec3b& pixel = hsvImage.at<cv::Vec3b>(i, j);
-			pixel[0] = (pixel[0] + 90) % 180;
-		}
-	}
-	cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
 }
 
 void ImageProcessing::drawPolylinesAroundObject(cv::Mat image) {
@@ -343,63 +342,12 @@ void ImageProcessing::drawRectangleAroundObject(cv::Mat image) {
 	}
 }
 
-void ImageProcessing::drawAndScaleRectangleFromPoints(cv::Mat& image, std::vector<cv::Point>& parallelogramPoints) {
-	// Vérifie si parallelogramPoints contient au moins quatre points
-	if (parallelogramPoints.size() >= 5) {
-		// Trouver le centre du parallélogramme
-		cv::Point center(0, 0);
-		for (const cv::Point& point : parallelogramPoints) {
-			center.x += point.x;
-			center.y += point.y;
-		}
-		center.x /= parallelogramPoints.size();
-		center.y /= parallelogramPoints.size();
-
-		// Trier les points par angle par rapport au centre
-		std::sort(parallelogramPoints.begin(), parallelogramPoints.end(), [&center](const cv::Point& a, const cv::Point& b) {
-			double angleA = atan2(a.y - center.y, a.x - center.x);
-			double angleB = atan2(b.y - center.y, b.x - center.x);
-			return angleA < angleB;
-			});
-
-		// Créez une image vide pour le résultat
-		cv::Mat result(image.size(), image.type(), cv::Scalar(255, 255, 255));
-
-		// Définissez les points source (les coins de l'image)
-		std::vector<cv::Point2f> srcPoints(4);
-		srcPoints[0] = cv::Point2f(0, 0);
-		srcPoints[1] = cv::Point2f(image.cols - 1, 0);
-		srcPoints[2] = cv::Point2f(image.cols - 1, image.rows - 1);
-		srcPoints[3] = cv::Point2f(0, image.rows - 1);
-
-		// Convertissez parallelogramPoints en un tableau de points de destination
-		std::vector<cv::Point2f> dstPoints(4);
-		for (int i = 0; i < 4; ++i) {
-			dstPoints[i] = cv::Point2f(parallelogramPoints[i].x, parallelogramPoints[i].y);
-		}
-
-		// Calculez la transformation perspective à partir des points source et de destination
-		cv::Mat perspectiveMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
-
-		// Appliquez la transformation perspective pour ajuster l'image au parallélogramme
-		cv::warpPerspective(image, result, perspectiveMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
-
-		// Remplacez l'image d'origine par l'image résultante
-		image = result.clone();
-	}
-
-	// Dessinez le parallélogramme sur l'image
-	for (int i = 0; i < parallelogramPoints.size(); ++i) {
-		cv::line(image, parallelogramPoints[i], parallelogramPoints[(i + 1) % parallelogramPoints.size()], cv::Scalar(255, 0, 255), 2);
-	}
-}
-
 std::vector<cv::Point> ImageProcessing::getMinimumBoundingRectanglePoints(cv::Mat image) {
 	std::vector<cv::Point> rectPoints;
 
 	// Create a mask for non-white pixels
 	cv::Mat mask;
-	cv::inRange(image, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), mask); // Exclude pure white
+	cv::inRange(image, cv::Scalar(0, 0, 0), cv::Scalar(180, 255, 254), mask); // Exclude pure white
 
 	// Find the contours in the mask
 	std::vector<std::vector<cv::Point>> contours;
@@ -508,4 +456,18 @@ double ImageProcessing::calculateAspectRatioOfObjects(cv::Mat image) {
 
 	// Return a default value if no objects are found
 	return 0.0; // You can choose any default value here
+}
+
+void ImageProcessing::CutShape(cv::Mat& image) {
+	cv::Mat form = image.clone();
+	ImageProcessing::ColorFiltering(form, cv::Scalar(5, 0, 13), cv::Scalar(90, 255, 255));
+	ImageProcessing::SimpleBinarization(form, 254);
+	cv::medianBlur(form, form, 35);
+	cv::medianBlur(form, form, 35);
+	cv::Mat hsvImage;
+	cv::cvtColor(form, hsvImage, cv::COLOR_BGR2HSV);
+	cv::Mat colorMask;
+	cv::inRange(hsvImage, cv::Scalar(0, 0, 254), cv::Scalar(255, 255, 255), colorMask);
+
+	image.setTo(cv::Scalar(255, 255, 255), colorMask);
 }

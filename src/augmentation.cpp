@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 #ifdef _MSC_VER
-	source = "images/Apple_scab/Image (42).JPG";
+	source = "images/Apple_scab/Image (43).JPG";
 	destination = "images/test2";
 #endif
 	// Check if source is a .JPG file
@@ -49,16 +49,16 @@ int main(int argc, char* argv[]) {
 		}
 		// Apply various image processing operations to different copies of the image
 		ImageProcessing::Rotate(images[1], 5.0, 45.0);
-		ImageProcessing::Blur(images[2], 2.5, 3.5);
-		ImageProcessing::Contrast(images[3], 1.5, 2.5);
-		ImageProcessing::Scale(images[4], 1.5, 2.5);
-		ImageProcessing::Illumination(images[5], 30, 60);
-		ImageProcessing::Projective(images[6], 15, 30);
+		ImageProcessing::Blur(images[2], 1.5, 2.0);
+		ImageProcessing::Contrast(images[3], 1.5, 2.0);
+		ImageProcessing::Scale(images[4], 1.25, 1.5);
+		ImageProcessing::Illumination(images[5], 30, 40);
+		ImageProcessing::Projective(images[6], 30, 40);
 
 		// Create a mosaic image from the processed images
 		std::vector<std::string> labels = { "Original", "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" };
 		ImageUtils::CreateImageMosaic(images, "Transformation", labels);
-		
+
 		// Create a mosaic image from the processed images
 		images.erase(images.begin());
 		labels.erase(labels.begin());
@@ -67,6 +67,9 @@ int main(int argc, char* argv[]) {
 			ImageUtils::SaveImages(source, images, labels);
 		}
 		else {
+			if (destination.back() != '/') {
+				destination += "/";
+			}
 			const size_t lastSlashPosition = source.find_last_of('/');
 			const std::string name = source.substr(lastSlashPosition + 1);
 			ImageUtils::SaveImages(destination + name, images, labels);
@@ -100,11 +103,11 @@ int main(int argc, char* argv[]) {
 			}
 			// Apply various image processing operations to different copies of the image
 			ImageProcessing::Rotate(images[0], 5.0, 45.0);
-			ImageProcessing::Blur(images[1], 2.5, 3.5);
-			ImageProcessing::Contrast(images[2], 1.5, 2.5);
-			ImageProcessing::Scale(images[3], 1.5, 2.5);
-			ImageProcessing::Illumination(images[4], 30, 60);
-			ImageProcessing::Projective(images[5], 15, 30);
+			ImageProcessing::Blur(images[1], 1.5, 2.0);
+			ImageProcessing::Contrast(images[2], 1.5, 2.0);
+			ImageProcessing::Scale(images[3], 1.25, 1.5);
+			ImageProcessing::Illumination(images[4], 30, 40);
+			ImageProcessing::Projective(images[5], 30, 40);
 
 			// Create a mosaic image from the processed images
 			std::vector<std::string> labels = { "Original", "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" };

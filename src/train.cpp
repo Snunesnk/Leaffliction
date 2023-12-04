@@ -19,8 +19,7 @@ int main(int argc, char* argv[]) {
 			std::string index = std::to_string(j + 1);
 			filePath += "/" + output_pair[i].first + "/image (" + index + ").JPG";
 			cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
-			if (image.empty())
-			{
+			if (image.empty()) {
 				std::cerr << "Unable to load the image. " << filePath << std::endl;
 
 				continue;
@@ -32,9 +31,9 @@ int main(int argc, char* argv[]) {
 			std::vector<cv::Mat> images;
 
 			cv::Mat tmp_image = image.clone();
-			cv::Scalar lower_leaf_colors(10, 40, 20);
-			cv::Scalar upper_leaf_colors(100, 255, 255);
-			//ImageProcessing::applyColorFiltering(tmp_image, lower_leaf_colors, upper_leaf_colors);
+			cv::Scalar lower_data_colors(10, 40, 20);
+			cv::Scalar upper_data_colors(100, 255, 255);
+			//ImageProcessing::applyColorFiltering(tmp_image, lower_data_colors, upper_data_colors);
 			//std::vector<cv::Point> convexPoints = ImageProcessing::getConvexHullPoints(tmp_image);
 			//ImageProcessing::cropImageWithPoints(image, convexPoints);
 			//std::vector<cv::Point> rectanglePoints = ImageProcessing::getMinimumBoundingRectanglePoints(tmp_image);

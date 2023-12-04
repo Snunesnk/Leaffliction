@@ -4,10 +4,9 @@
 #include <opencv2/opencv.hpp>
 #include <filesystem>
 
-class ImageUtils
-{
+class ImageUtils {
 public:
-	static void CreateImageMosaic(std::vector<cv::Mat> images, std::string name);
+	static void CreateImageMosaic(const std::vector<cv::Mat> images, const std::string name, const std::vector<std::string>& labels);
 	static void SaveImages(const std::string& filePath, const std::vector<cv::Mat>& images, const std::vector<std::string>& types);
 };
 

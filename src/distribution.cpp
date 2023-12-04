@@ -1,23 +1,17 @@
 #include <iostream>
 #include "image_utils.h"
 
-std::string checkImagesInDirectory(const std::string& directoryPath, std::string informations = "", size_t deepness = 0)
-{
+std::string checkImagesInDirectory(const std::string& directoryPath, std::string informations = "", size_t deepness = 0) {
 	size_t imageCount = 0;
-	for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
-	{
+	for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
 		std::filesystem::path entryPath = entry.path();
 		std::string DirectoryName = entryPath.filename().generic_string();
-		if (std::filesystem::is_directory(entryPath))
-		{
-			for (size_t i = 0; i <= deepness; i++)
-			{
-				if (i == deepness)
-				{
+		if (std::filesystem::is_directory(entryPath)) {
+			for (size_t i = 0; i <= deepness; i++) {
+				if (i == deepness) {
 					std::cout << "|--- ";
 				}
-				else
-				{
+				else {
 					std::cout << "|    ";
 				}
 			}
@@ -28,28 +22,22 @@ std::string checkImagesInDirectory(const std::string& directoryPath, std::string
 			informations = checkImagesInDirectory(genericPath, informations, deepness + 1);
 			informations += ",";
 		}
-		else if (std::filesystem::is_regular_file(entryPath))
-		{
+		else if (std::filesystem::is_regular_file(entryPath)) {
 			std::string fileName = entryPath.filename().generic_string();
 			size_t pos = fileName.find('.');
-			if (pos != std::string::npos)
-			{
+			if (pos != std::string::npos) {
 				std::string fileType = fileName.substr(pos, fileName.size());
-				if (fileType == ".JPG")
-				{
+				if (fileType == ".JPG") {
 					imageCount++;
 				}
 			}
 		}
 	}
-	for (size_t i = 0; i <= deepness; i++)
-	{
-		if (i == deepness)
-		{
+	for (size_t i = 0; i <= deepness; i++) {
+		if (i == deepness) {
 			std::cout << "'--- ";
 		}
-		else
-		{
+		else {
 			std::cout << "|    ";
 		}
 	}
@@ -57,41 +45,32 @@ std::string checkImagesInDirectory(const std::string& directoryPath, std::string
 	return informations + std::to_string(imageCount);
 }
 
-std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(const std::string& str)
-{
+std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(const std::string& str) {
 	std::vector<std::pair<std::string, std::string>> result;
 	std::istringstream ss(str);
 	std::string segment;
-	while (std::getline(ss, segment, ','))
-	{
-		try
-		{
+	while (std::getline(ss, segment, ',')) {
+		try {
 			size_t value = std::stoi(segment);
-			for (auto it = result.end() - 1; it >= result.begin(); --it)
-			{
-				if (it->second == "")
-				{
+			for (auto it = result.end() - 1; it >= result.begin(); --it) {
+				if (it->second == "") {
 					it->second = segment;
 					break;
 				}
 			}
 		}
-		catch (const std::invalid_argument&)
-		{
+		catch (const std::invalid_argument&) {
 			result.emplace_back(segment, "");
 		}
-		catch (const std::out_of_range&)
-		{
+		catch (const std::out_of_range&) {
 			result.emplace_back(segment, "");
 		}
 	}
 	return result;
 }
 
-int main(int argc, char* argv[])
-{
-	if (argc != 2)
-	{
+int main(int argc, char* argv[]) {
+	if (argc != 2) {
 		std::cerr << "Usage: " << argv[0] << " <directory_path>" << std::endl;
 		return 1;
 	}

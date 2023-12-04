@@ -3,22 +3,17 @@
 #include "image_processing.h"
 #include "image_utils.h"
 
-std::vector<std::string> getImagesInDirectory(const std::string& directoryPath)
-{
+std::vector<std::string> getImagesInDirectory(const std::string& directoryPath) {
 	std::vector<std::string> images;
 	size_t imageCount = 0;
-	for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
-	{
+	for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
 		std::filesystem::path entryPath = entry.path();
-		if (std::filesystem::is_regular_file(entryPath))
-		{
+		if (std::filesystem::is_regular_file(entryPath)) {
 			std::string fileName = entryPath.filename().generic_string();
 			size_t pos = fileName.find('.');
-			if (pos != std::string::npos)
-			{
+			if (pos != std::string::npos) {
 				std::string fileType = fileName.substr(pos, fileName.size());
-				if (fileType == ".JPG")
-				{
+				if (fileType == ".JPG") {
 					images.push_back(fileName);
 					imageCount++;
 				}
@@ -104,12 +99,10 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	}
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
 
 	// Get the directory path from the command-line argument
-	if (argc < 2)
-	{
+	if (argc < 2) {
 		std::cerr << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>" << std::endl;
 		return 1;  // Return an error code
 	}
@@ -141,8 +134,7 @@ int main(int argc, char* argv[])
 	if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
 		// Load an image from the specified file path
 		cv::Mat image = cv::imread(source, cv::IMREAD_COLOR);
-		if (image.empty())
-		{
+		if (image.empty()) {
 			std::cerr << "Unable to load the image." << std::endl;
 			return -1;
 		}
@@ -185,8 +177,7 @@ int main(int argc, char* argv[])
 		for (auto name : names) {
 			// Load an image from the specified file path
 			cv::Mat image = cv::imread(source + name, cv::IMREAD_COLOR);
-			if (image.empty())
-			{
+			if (image.empty()) {
 				std::cerr << "Unable to load the image." << std::endl;
 				return -1;
 			}

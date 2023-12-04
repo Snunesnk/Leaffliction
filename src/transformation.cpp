@@ -45,9 +45,9 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 			intensityCounts[1][saturation]++;
 			intensityCounts[2][value]++;
 			// Extract values from Blue, Green and Red channels (BGR)
-			int blue = image.at<cv::Vec3b>(y, x)[0]; // Blue channel
-			int green = image.at<cv::Vec3b>(y, x)[1]; // Green channel
-			int red = image.at<cv::Vec3b>(y, x)[2]; // Red channel
+			int blue = image.at<cv::Vec3b>(y, x)[0];
+			int green = image.at<cv::Vec3b>(y, x)[1];
+			int red = image.at<cv::Vec3b>(y, x)[2];
 			intensityCounts[3][blue]++;
 			intensityCounts[4][green]++;
 			intensityCounts[5][red]++;
@@ -68,12 +68,12 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>& proportions) {
 	// Create and open a text file for writing
 	std::ofstream pythonScript("script.py");
-	// Verify if the Python file was successfully created
 	if (!pythonScript.is_open()) {
 		throw std::runtime_error("Erreur : Impossible de créer le fichier Python (script.py).");
 	}
 	std::vector<std::string> channels = { "hue", "saturation", "value", "blue", "green", "red" };
 	std::vector<std::string> colors = { "purple", "cyan", "orange", "blue", "green", "red" };
+	// Python script
 	pythonScript << "import matplotlib.pyplot as plt\n";
 	pythonScript << "import numpy as np\n";
 	pythonScript << "plt.figure(figsize=(9, 7))\n";
@@ -93,7 +93,7 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	pythonScript << "plt.ylabel('Proportion of pixels (%)')\n";
 	pythonScript << "plt.show()";
 	pythonScript.close();
-	// Execute the Python command
+
 	if (system("python script.py &") != 0) {
 		throw std::runtime_error("Error: Failed to execute the Python command.");
 	}
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
 	// Get the directory path from the command-line argument
 	if (argc < 2) {
 		std::cerr << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>" << std::endl;
-		return 1;  // Return an error code
+		return 1;
 	}
 	std::string source;
 	std::string destination;
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 #ifdef _MSC_VER
-	source = "images/Apple_scab";
+	source = "images/Apple_scab/Image (42).JPG";
 	destination = "images/test2";
 #endif
 	// Check if source is a .JPG file
@@ -196,7 +196,7 @@ int main(int argc, char* argv[]) {
 			ImageProcessing::ExtractBlueChannel(images[3]);
 			ImageProcessing::ExtractSaturation(images[4], 128);
 			ImageProcessing::ExtractValue(images[5], 128);
-			// Save the processed images with their respective augmentation names
+			// Save the processed images with their respective labels
 			std::vector<std::string> labels = { "ColorFiltering", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
 			ImageUtils::SaveImages(destination + name, images, labels);
 			cv::waitKey(0);

@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
 			directoryPath += "/";
 		}
 
-		std::vector<std::string> labels = { "Shape", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
+		std::vector<std::string> labels = { "T1", "T2", "T3", "T4", "T5", "T6" };
 		std::vector<double(*)(cv::Mat& image)> functions = { getAspectRatio, getRedMean, getGreenMean, getBlueMean, getSaturationPtc, getValuePtc };
 		const int featureBegin = 3;
 		std::vector<std::vector<std::string>> datas;

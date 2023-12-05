@@ -15,7 +15,7 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 		for (int x = 0; x < hsvImage.cols; ++x) {
 			cv::Vec3b hsvPixel = hsvImage.at<cv::Vec3b>(y, x);
 			// Extract values from each channel
-			int hue = hsvPixel[0];
+			int hue = static_cast<int>(hsvPixel[0] * 1.417); // adapt openCV hue : 180.0 * 1.417 = 255.06
 			int saturation = hsvPixel[1];
 			int value = hsvPixel[2];
 			// Increment the intensity count for each channel
@@ -114,7 +114,7 @@ void SaveTransformationsFromToDirectory(std::string& source, std::string& destin
 		ImageProcessing::EqualizeHistogram(images[5]);
 
 		// Save the processed images with their respective labels
-		std::vector<std::string> labels = { "T1-Shape", "T2-HEColor", "T3-HESaturation", "T4-HEValue", "T5-GrayScale", "T6-HEGrayScale" };
+		std::vector<std::string> labels = { "T1", "T2", "T3", "T4", "T5", "T6" };
 		ImageUtils::SaveImages(destination + names[i], images, labels);
 
 		// Progression

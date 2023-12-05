@@ -77,145 +77,171 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	}
 }
 
-int main(int argc, char* argv[]) {
-
-	// Get the directory path from the command-line argument
-	if (argc < 2) {
-		std::cerr << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>" << std::endl;
-		return 1;
+void SaveTransformationsFromToDirectory(std::string& source, std::string& destination, int generation) {
+	// Check if source and destination are provided
+	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
+		throw std::runtime_error("Missing source or destination directory.");
 	}
-	std::string source;
-	std::string destination;
-
-	// Parse command-line arguments
-	for (int i = 1; i < argc; ++i) {
-		std::string arg = argv[i];
-		if (arg == "-src" && i + 1 < argc) {
-			source = argv[i + 1];
-			++i;
-		}
-		else if (arg == "-dst" && i + 1 < argc) {
-			destination = argv[i + 1];
-			++i;
-		}
-		else if (arg == "-h") {
-			// Display usage information and exit
-			std::cout << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>" << std::endl;
-			return 0;
-		}
+	if (source.back() != '/') {
+		source += "/";
 	}
-#ifdef _MSC_VER
-	//images
-	//	| -- - Apple_Black_rot
-	//	| '--- 620 files
-	//	| -- - Apple_healthy
-	//	| '--- 1640 files
-	//	| -- - Apple_rust
-	//	| '--- 275 files
-	//	| -- - Apple_scab
-	//	| '--- 629 files
-	//	| -- - Grape_Black_rot
-	//	| '--- 1178 files
-	//	| -- - Grape_Esca
-	//	| '--- 1382 files
-	//	| -- - Grape_healthy
-	//	| '--- 422 files
-	//	| -- - Grape_spot
-	//	| '--- 1075 files
-	//	'--- 0 files
-	source = "images/Grape_spot/";
-	destination = "images/Grape_spot";
-#endif
-	// Check if source is a .JPG file
-	if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
+	if (destination.back() != '/') {
+		destination += "/";
+	}
+	std::vector<std::string> names = ImageUtils::GgetImagesInDirectory(source);
+	for (auto i = 0; i < names.size(); i++) {
 		// Load an image from the specified file path
-		cv::Mat originalImage = cv::imread(source, cv::IMREAD_COLOR);
+		cv::Mat originalImage = cv::imread(source + names[i], cv::IMREAD_COLOR);
 		if (originalImage.empty()) {
-			std::cerr << "Unable to load the image." << std::endl;
-			return -1;
+			throw std::runtime_error("Unable to load the image.");
 		}
-
 		std::vector<cv::Mat> images;
-		images.push_back(originalImage.clone());
 
-		ImageProcessing::EqualizeValueHistogram(originalImage);
-		ImageProcessing::EqualizeSaturationHistogram(originalImage);
-		ImageProcessing::CutShape(originalImage);
-		ImageProcessing::EqualizeValueHistogram(originalImage);
-		ImageProcessing::EqualizeSaturationHistogram(originalImage);
-
-		// Create a vector to store multiple copies of the processed image
+		// Create a vector to store multiple copies of the loaded image
 		for (int i = 0; i < 6; i++) {
 			images.push_back(originalImage.clone());
 		}
 
 		// Apply various image processing operations to different copies of the image
-		images[1] = originalImage.clone();
-		ImageProcessing::SimpleBinarization(images[1], 254);
-		ImageProcessing::ExtractRedChannel(images[2]);
-		ImageProcessing::ExtractGreenChannel(images[3]);
-		ImageProcessing::ExtractBlueChannel(images[4]);
-		ImageProcessing::ExtractSaturation(images[5], 128);
-		ImageProcessing::ExtractValue(images[6], 128);
+		std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[0]);
+		for (int i = 0; i < 6; i++) {
+			ImageProcessing::cropImageWithPoints(images[i], points);
+		}
+		ImageProcessing::EqualizeHistogramColor(images[1]);
+		ImageProcessing::EqualizeHistogramSaturation(images[2]);
+		ImageProcessing::EqualizeHistogramValue(images[3]);
+		ImageProcessing::ConvertToGrayScale(images[4]);
+		ImageProcessing::EqualizeHistogram(images[5]);
 
-		// Create a mosaic image from the processed images
-		std::vector<std::string> labels = { "Original", "Shape", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
-		ImageUtils::CreateImageMosaic(images, "Transformation", labels);
+		// Save the processed images with their respective labels
+		std::vector<std::string> labels = { "T1-Shape", "T2-HEColor", "T3-HESaturation", "T4-HEValue", "T5-GrayScale", "T6-HEGrayScale" };
+		ImageUtils::SaveImages(destination + names[i], images, labels);
 
-		cv::waitKey(1);
-
-		// Calculate intensity proportions and generate the graph
-		std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(images[0]);
-		generateGraphScript(proportions);
-
-		cv::waitKey(0);
+		// Progression
+		int progress = (i + 1) * 100 / names.size();
+		int numComplete = (progress * 50) / 100;
+		int numRemaining = 50 - numComplete;
+		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+		std::cout << "\033[A";
+		if ((generation -= 6) <= 0) {
+			std::cout << "\nGeneration ended at -gen parameter." << std::endl;
+			return;
+		}
+		break;
 	}
-	else {
-		// Check if source and destination are provided
-		if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
-			std::cerr << "Missing source or destination directory. Use -h for help." << std::endl;
-			return 1;
+	std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush;
+}
+
+void displayImageTranformations(const std::string& source) {
+	// Load an image from the specified file path
+	cv::Mat originalImage = cv::imread(source, cv::IMREAD_COLOR);
+	if (originalImage.empty()) {
+		throw std::runtime_error("Unable to load the image.");
+	}
+
+	std::vector<cv::Mat> images;
+	images.push_back(originalImage.clone());
+
+
+	// Create a vector to store multiple copies of the processed image
+	for (int i = 0; i < 6; i++) {
+		images.push_back(originalImage.clone());
+	}
+
+	// Apply various image processing operations to different copies of the image
+	std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[1]);
+	for (int i = 1; i < 7; i++) {
+		ImageProcessing::cropImageWithPoints(images[i], points);
+	}
+	ImageProcessing::EqualizeHistogramColor(images[2]);
+	ImageProcessing::EqualizeHistogramSaturation(images[3]);
+	ImageProcessing::EqualizeHistogramValue(images[4]);
+	ImageProcessing::ConvertToGrayScale(images[5]);
+	ImageProcessing::EqualizeHistogram(images[6]);
+
+	// Save the processed images with their respective labels
+	std::vector<std::string> labels = { "Original", "T1-Shape", "T2-HEColor", "T3-HESaturation", "T4-HEValue", "T5-GrayScale", "T6-HEGrayScale" };
+	ImageUtils::CreateImageMosaic(images, "Transformation", labels);
+
+	cv::waitKey(1);
+
+	// Calculate intensity proportions and generate the graph
+	std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(images[0]);
+	generateGraphScript(proportions);
+
+	cv::waitKey(0);
+}
+
+int main(int argc, char* argv[]) {
+	try {
+		if (argc < 2) {
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory/source_image> -dst <destination_directory> -gen <generation_max>");
+
 		}
-		if (source.back() != '/') {
-			source += "/";
-		}
-		if (destination.back() != '/') {
-			destination += "/";
-		}
-		std::vector<std::string> names = ImageUtils::GgetImagesInDirectory(source);
-		for (auto name : names) {
-			// Load an image from the specified file path
-			cv::Mat originalImage = cv::imread(source + name, cv::IMREAD_COLOR);
-			if (originalImage.empty()) {
-				std::cerr << "Unable to load the image." << std::endl;
-				return -1;
+		std::string source;
+		std::string destination;
+		int generation = std::numeric_limits<int>::max();
+
+		// Parse command-line arguments
+		for (int i = 1; i < argc; ++i) {
+			std::string arg = argv[i];
+			if (arg == "-src" && i + 1 < argc) {
+				source = argv[i + 1];
+				++i;
 			}
-			std::vector<cv::Mat> images;
-
-			ImageProcessing::EqualizeValueHistogram(originalImage);
-			ImageProcessing::EqualizeSaturationHistogram(originalImage);
-			ImageProcessing::CutShape(originalImage);
-			ImageProcessing::EqualizeValueHistogram(originalImage);
-			ImageProcessing::EqualizeSaturationHistogram(originalImage);
-
-			// Create a vector to store multiple copies of the loaded image
-			for (int i = 0; i < 6; i++) {
-				images.push_back(originalImage.clone());
+			else if (arg == "-dst" && i + 1 < argc) {
+				destination = argv[i + 1];
+				++i;
 			}
-
-			// Apply various image processing operations to different copies of the image
-			images[0] = originalImage.clone();
-			ImageProcessing::SimpleBinarization(images[0], 254);
-			ImageProcessing::ExtractRedChannel(images[1]);
-			ImageProcessing::ExtractGreenChannel(images[2]);
-			ImageProcessing::ExtractBlueChannel(images[3]);
-			ImageProcessing::ExtractSaturation(images[4], 128);
-			ImageProcessing::ExtractValue(images[5], 128);
-
-			// Save the processed images with their respective labels
-			std::vector<std::string> labels = { "Shape", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
-			ImageUtils::SaveImages(destination + name, images, labels);
+			else if (arg == "-gen" && i + 1 < argc) {
+				try {
+					generation = std::atoi(argv[i + 1]);
+				}
+				catch (...) {
+					throw std::runtime_error("Unable to read the -gen value.");
+				}
+				++i;
+			}
+			else if (arg == "-h") {
+				std::cout << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>  -gen <generation_max>" << std::endl;
+				return 0;
+			}
 		}
+#ifdef _MSC_VER
+		//images
+		//	|--- Apple_Black_rot
+		//	|    '--- 620 files
+		//	|--- Apple_healthy
+		//	|    '--- 1640 files
+		//	|--- Apple_rust
+		//	|    '--- 275 files
+		//	|--- Apple_scab
+		//	|    '--- 629 files
+		//	|--- Grape_Black_rot
+		//	|    '--- 1178 files
+		//	|--- Grape_Esca
+		//	|    '--- 1382 files
+		//	|--- Grape_healthy
+		//	|    '--- 422 files
+		//	|--- Grape_spot
+		//	|    '--- 1075 files
+		//	'--- 0 files
+		source = "images/Grape_Esca/";
+		destination = "images/test";
+#endif
+
+		// Check if source is a .JPG file
+		if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
+			displayImageTranformations(source);
+		}
+		else {
+			SaveTransformationsFromToDirectory(source, destination, generation);
+		}
+	}
+	catch (const std::exception& e) {
+		std::cerr << e.what() << std::endl;
+		std::cerr << "Use -h for help." << std::endl;
+		return 1;
 	}
 	return 0;
 }

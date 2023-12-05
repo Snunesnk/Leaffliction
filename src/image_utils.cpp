@@ -24,15 +24,15 @@ void ImageUtils::CreateImageMosaic(const std::vector<cv::Mat> images, const std:
 }
 
 void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::Mat>& images, const std::vector<std::string>& types) {
-	const size_t lastSlashPosition = filePath.find_last_of('/');
-	const size_t lastPointPosition = filePath.find_last_of('.');
-	const std::string saveDirectory = filePath.substr(0, lastSlashPosition + 1);
-	const std::string imageName = filePath.substr(lastSlashPosition + 1, lastPointPosition - lastSlashPosition - 1);
+	const size_t lastSlashPos = filePath.find_last_of('/');
+	const size_t lastPointPos = filePath.find_last_of('.');
+	const std::string saveDir = filePath.substr(0, lastSlashPos + 1);
+	const std::string imgName = filePath.substr(lastSlashPos + 1, lastPointPos - lastSlashPos - 1);
 
 	for (int i = 0; i < images.size(); i++) {
-		const std::string filename = saveDirectory + imageName + "_" + types[i] + ".JPG";
-		cv::imwrite(filename, images[i]);
-		std::cout << "Saved : " << filename << std::endl;
+		const std::string outputFilename = saveDir + imgName + "_" + types[i] + ".JPG";
+		cv::imwrite(outputFilename, images[i]);
+		std::cout << "\r\033[K" << "Saved : " << outputFilename;
 	}
 }
 

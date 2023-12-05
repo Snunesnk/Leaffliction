@@ -16,6 +16,16 @@ const std::vector<std::string> ModelUtils::targets = {
 	"Grape_spot"
 };
 
+const std::vector<std::string> labels = { 
+	"Shape",
+	"RedChannel",
+	"GreenChannel",
+	"BlueChannel",
+	"Saturation",
+	"Value"
+};
+
+
 // Function to check if a string represents a number, allowing for negative numbers and decimal points.
 bool ModelUtils::isNumber(const std::string& str) {
 	bool hasDigit = false;

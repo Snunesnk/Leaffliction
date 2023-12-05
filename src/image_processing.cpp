@@ -125,7 +125,7 @@ void ImageProcessing::EqualizeHistogram(cv::Mat& image) {
 	image.copyTo(originalImage, image);
 }
 
-void ImageProcessing::EqualizeColorHistogram(cv::Mat& image) {
+void ImageProcessing::EqualizeHistogramColor(cv::Mat& image) {
 	std::vector<cv::Mat> channels;
 	cv::split(image, channels);
 	for (int i = 0; i < channels.size(); i++) {
@@ -134,7 +134,7 @@ void ImageProcessing::EqualizeColorHistogram(cv::Mat& image) {
 	cv::merge(channels, image);
 }
 
-void ImageProcessing::EqualizeSaturationHistogram(cv::Mat& image) {
+void ImageProcessing::EqualizeHistogramSaturation(cv::Mat& image) {
 	cv::Mat hsvImage;
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
 	std::vector<cv::Mat> channels;
@@ -144,7 +144,7 @@ void ImageProcessing::EqualizeSaturationHistogram(cv::Mat& image) {
 	cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
 }
 
-void ImageProcessing::EqualizeValueHistogram(cv::Mat& image) {
+void ImageProcessing::EqualizeHistogramValue(cv::Mat& image) {
 	cv::Mat hsvImage;
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
 	std::vector<cv::Mat> channels;
@@ -458,16 +458,46 @@ double ImageProcessing::calculateAspectRatioOfObjects(cv::Mat image) {
 	return 0.0; // You can choose any default value here
 }
 
-void ImageProcessing::CutShape(cv::Mat& image) {
-	cv::Mat form = image.clone();
-	ImageProcessing::ColorFiltering(form, cv::Scalar(5, 0, 13), cv::Scalar(90, 255, 255));
-	ImageProcessing::SimpleBinarization(form, 254);
-	cv::medianBlur(form, form, 35);
-	cv::medianBlur(form, form, 35);
-	cv::Mat hsvImage;
-	cv::cvtColor(form, hsvImage, cv::COLOR_BGR2HSV);
-	cv::Mat colorMask;
-	cv::inRange(hsvImage, cv::Scalar(0, 0, 254), cv::Scalar(255, 255, 255), colorMask);
+std::vector<cv::Point> ImageProcessing::ExtractShape(cv::Mat& image) {
 
-	image.setTo(cv::Scalar(255, 255, 255), colorMask);
+	cv::Mat clone = image.clone();
+	ImageProcessing::EqualizeHistogramValue(clone);
+	ImageProcessing::EqualizeHistogramSaturation(clone);
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(20, 50, 50), cv::Scalar(80, 255, 255));
+	std::vector<cv::Point> points =  getConvexHullPoints(clone);
+
+	clone = image.clone();
+	ImageProcessing::EqualizeHistogramValue(clone);
+	ImageProcessing::EqualizeHistogramSaturation(clone);
+	ImageProcessing::cropImageWithPoints(clone, points);
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(5, 105, 15), cv::Scalar(80, 255, 255));
+	cv::medianBlur(clone, clone, 31);
+
+	cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone); // Exclude pure white
+	std::vector<std::vector<cv::Point>> contours;
+	std::vector<cv::Vec4i> hierarchy;
+	cv::findContours(clone, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+	points = std::vector<cv::Point>();
+	for (size_t i = 0; i < contours.size(); ++i) {
+		points.insert(points.end(), contours[i].begin(), contours[i].end());
+	}
+	clone = image.clone();//
+	ImageProcessing::cropImageWithPoints(clone, points);
+	ImageProcessing::EqualizeHistogramValue(clone);
+	ImageProcessing::EqualizeHistogramSaturation(clone);
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(0, 15, 5), cv::Scalar(180, 255, 255));
+	cv::medianBlur(clone, clone, 21);
+	cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone); // Exclude pure white
+	contours = std::vector<std::vector<cv::Point>>();
+	hierarchy = std::vector<cv::Vec4i>();
+	cv::findContours(clone, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+	points = std::vector<cv::Point>();
+	for (size_t i = 0; i < contours.size(); ++i) {
+		points.insert(points.end(), contours[i].begin(), contours[i].end());
+	}
+
+	ImageProcessing::cropImageWithPoints(image, points);
+	ImageProcessing::SimpleBinarization(image, 254);
+
+	return points;
 }

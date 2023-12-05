@@ -1,7 +1,11 @@
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 #include "image_processing.h"
 #include "image_utils.h"
+
+#include "model_utils.h"
+#include "model_calculate.h"
 
 double getAspectRatio(cv::Mat& image) {
 	std::vector<cv::Point> rectanglePoints = ImageProcessing::getMinimumBoundingRectanglePoints(image);
@@ -97,40 +101,115 @@ int main(int argc, char* argv[]) {
 		}
 		std::string directoryPath = argv[1];
 		std::cout << directoryPath << std::endl;
-#ifdef _MSC_VER
-		directoryPath = "images/test2";
-#endif
+
 		if (directoryPath.back() != '/') {
 			directoryPath += "/";
 		}
 
 		std::vector<std::string> labels = { "Shape", "RedChannel", "GreenChannel", "BlueChannel", "Saturation", "Value" };
 		std::vector<double(*)(cv::Mat& image)> functions = { getAspectRatio, getRedMean, getGreenMean, getBlueMean, getSaturationPtc, getValuePtc };
-
-		std::vector<std::string> files = ImageUtils::GgetImagesInDirectory(directoryPath);
-		for (auto file : files) {
-			std::string filePath = directoryPath + file;
-			cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
-			if (image.empty()) {
-				std::cerr << "Unable to load the image. " << filePath << std::endl;
-				break;
-			}
-			std::cout << "Image opened. " << filePath << std::endl;
-
-			// Utilisez la méthode find pour chercher le mot dans le texte
-			for (auto i = 0; i < labels.size(); i++) {
-				size_t position = filePath.find(labels[i]);
-				if (position != std::string::npos) {				
-					double aspectRatio = functions[i](image);
-					cv::imshow("image", image);
-					std::cout << labels[i] << " : " << aspectRatio << std::endl;
-					cv::waitKey(0);
+		const int featureBegin = 3;
+		std::vector<std::vector<std::string>> datas;
+		auto prevLine = 0;
+		for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+			break;
+			const std::string target = entry.path().filename().generic_string();
+			bool v = false;
+			for (auto j = 0; j < ModelUtils::targets.size(); j++) {
+				if (target == ModelUtils::targets[j]) {
+					v = true;
 					break;
 				}
 			}
+			if (v == false) {
+				continue;
+			}
+			const std::string entryPath = entry.path().generic_string() + "/";
+			const std::vector<std::string> files = ImageUtils::GgetImagesInDirectory(entryPath);
+			
+			auto feature = -1;
+			std::vector<std::string> elems(labels.size() + featureBegin, "");
+			for (auto i = 0; i < files.size(); i++) {
+				std::string filePath = entryPath + files[i];
+				cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
+				if (image.empty()) {
+					std::cerr << "Unable to load the image. " << filePath << std::endl;
+					return 1;
+				}
+
+				if (feature == -1) {
+					elems[0] = std::to_string(datas.size());
+					elems[1] = target;
+					auto position = files[i].find_last_of('_');
+					if (position == std::string::npos) {
+						position = files[i].find_last_of('.');
+					}
+					const std::string name = files[i].substr(0, position);
+					elems[2] = name;
+					feature++;
+				}
+
+				for (auto j = 0; j < labels.size(); j++) {
+					size_t position = files[i].find(labels[j]);
+					if (position != std::string::npos) {
+						double result = functions[j](image);
+						elems[j + featureBegin] = std::to_string(result);
+						feature++;
+					}
+				}
+
+				if (feature == labels.size()) {
+					feature = -1;
+					datas.push_back(elems);
+					//elems = std::vector<std::string>(labels.size() + featureBegin, "");
+				}
+			}
+			if (feature != -1) {
+				std::cerr << "Unable to create data: transformation missing. " << std::endl;
+				return 1;
+			}
 		}
-		cv::waitKey(0);
-		cv::destroyAllWindows();
+		//// Nom du fichier CSV
+		//std::string filename = "data.csv";
+
+		//// Ouvrir le fichier en mode écriture
+		//std::ofstream outputFile(filename);
+
+		//if (outputFile.is_open()) {
+		//	// Écriture des données dans le fichier CSV
+		//	for (size_t i = 0; i < datas.size(); i++) {
+		//		for (size_t j = 0; j < datas[i].size(); j++) {
+		//			outputFile << datas[i][j];
+		//			if (j < datas[i].size() - 1) {
+		//				outputFile << ",";
+		//			}
+		//			else {
+		//				outputFile << std::endl;
+		//			}
+		//		}
+		//	}
+
+		//	// Fermer le fichier
+		//	outputFile.close();
+
+		//	std::cout << "Datas saved to " << filename << std::endl;
+		//}
+		//else {
+		//	std::cerr << "Unable to open " << filename << std::endl;
+		//}
+
+		std::vector<DataInfo> datasInfo;
+		auto [headers, featuresStartIndex] = ModelUtils::LoadDataFile("data.csv", datasInfo);
+		
+		for (auto i = 0; i < datas.size(); i++) {
+			datasInfo.push_back(DataInfo());
+			datasInfo.back().index = std::stoi(datas[i][0]);
+			datasInfo.back().labels.push_back(datas[i][1]);
+			for (auto j = 0; j < labels.size(); j++) {
+				datasInfo.back().features.push_back(std::stod(datas[i][1]));
+			}
+		}
+		ModelCalculate::CreateModel(datasInfo);
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;

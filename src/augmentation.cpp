@@ -7,11 +7,12 @@ int main(int argc, char* argv[]) {
 
 	// Get the directory path from the command-line argument
 	if (argc < 2) {
-		std::cerr << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>" << std::endl;
+		std::cerr << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory> -gen <generation_max>" << std::endl;
 		return 1;
 	}
 	std::string source;
 	std::string destination;
+	int generation = std::numeric_limits<int>::max();
 
 	// Parse command-line arguments
 	for (int i = 1; i < argc; ++i) {
@@ -24,15 +25,43 @@ int main(int argc, char* argv[]) {
 			destination = argv[i + 1];
 			++i;
 		}
+		else if (arg == "-gen" && i + 1 < argc) {
+			try {
+				generation = std::atoi(argv[i + 1]);
+			}
+			catch (...) {
+				std::cout << "Unable to read the value for the maximum generation. Use -h for help." << std::endl;
+			}
+			++i;
+		}
 		else if (arg == "-h") {
 			// Display usage information and exit
-			std::cout << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>" << std::endl;
+			std::cout << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory> -gen <generation_number>" << std::endl;
 			return 0;
 		}
 	}
 #ifdef _MSC_VER
-	source = "images/Apple_scab/Image (43).JPG";
-	destination = "images/test2";
+	//images
+	//	| -- - Apple_Black_rot
+	//	| '--- 620 files
+	//	| -- - Apple_healthy
+	//	| '--- 1640 files
+	//	| -- - Apple_rust
+	//	| '--- 275 files
+	//	| -- - Apple_scab
+	//	| '--- 629 files
+	//	| -- - Grape_Black_rot
+	//	| '--- 1178 files
+	//	| -- - Grape_Esca
+	//	| '--- 1382 files
+	//	| -- - Grape_healthy
+	//	| '--- 422 files
+	//	| -- - Grape_spot
+	//	| '--- 1075 files
+	//	'--- 0 files
+	source = "images/Grape_spot";
+	destination = "images/Grape_spot";
+	generation = 1640 - 1075;
 #endif
 	// Check if source is a .JPG file
 	if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
@@ -112,6 +141,9 @@ int main(int argc, char* argv[]) {
 			// Create a mosaic image from the processed images
 			std::vector<std::string> labels = { "Original", "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" };
 			ImageUtils::SaveImages(destination + name, images, labels);
+			if ((generation -= 6) <= 0) {
+				break;
+			}
 		}
 	}
 	return 0;

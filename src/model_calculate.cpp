@@ -3,6 +3,120 @@
 #include "model_utils.h"
 #include "model_calculate.h"
 
+
+// Function definition for generating scatter plot matrix
+void extensionScatterPlotMatrix(const std::vector<DataInfo>& dataInfo, const size_t featuresCount) {
+	// Python script file name
+	std::string pythonScript = "scatterplot.py";
+
+	// Open Python script file
+	std::ofstream pythonFile(pythonScript);
+	if (pythonFile.is_open()) {
+		// Write Python script header
+		pythonFile << "import numpy as np\n";
+		pythonFile << "import matplotlib.pyplot as plt\n\n";
+
+		// Create a matrix of features values
+		std::vector<std::vector<double>> featuresValues(featuresCount);
+		for (size_t i = 0; i < featuresCount; ++i) {
+			for (const auto& data : dataInfo) {
+				featuresValues[i].push_back(data.features[i]);
+			}
+		}
+
+		// Define house indices and colors
+
+		std::vector<std::string> houseColors = { "green", "blue", "scarlet", "yellow", "cyan", "magenta", "black", "gray" };
+
+		// Loop over houses to create data arrays
+		for (size_t h = 0; h < ModelUtils::targets.size(); ++h) {
+			std::string house = ModelUtils::targets[h];
+			pythonFile << "features" << h << " = np.array([";
+			for (size_t k = 0; k < dataInfo.size(); ++k) {
+				// Filter data for the specific house
+				if (house != dataInfo[k].labels[0]) {
+					continue;
+				}
+				// Write feature values to the array
+				pythonFile << "[";
+				for (size_t i = 0; i < featuresCount; ++i) {
+					double featureValue = featuresValues[i][k];
+					if (!std::isnan(featureValue)) {
+						pythonFile << featureValue;
+					}
+					else {
+						pythonFile << "np.nan";
+					}
+					if (i < featuresCount - 1) {
+						pythonFile << ", ";
+					}
+				}
+				pythonFile << "]";
+				if (k < dataInfo.size() - 1) {
+					pythonFile << ", ";
+				}
+			}
+			pythonFile << "])\n";
+		}
+
+		// Set up parameters for the scatter plot matrix
+		const double subplotsSizeX = 1;
+		const double subplotsSizeY = 0.5;
+		const double pointSize = 0.1;
+		const std::string graphTitle = "Scatter Plot Matrix";
+
+		// Write code for creating scatter plot matrix
+		pythonFile << "fig, axs = plt.subplots(ncols=" << featuresCount << ", nrows=" << featuresCount << ", figsize=(" << subplotsSizeX * (double)(featuresCount) << ", " << subplotsSizeY * (double)(featuresCount) << "))\n";
+		pythonFile << "fig.suptitle('" << graphTitle << "')\n";
+		pythonFile << "plt.subplots_adjust(top=0.9, bottom=0.05, left=0.1, right=0.95, hspace=0.05, wspace=0.05)\n";
+
+		// Add labels to the plots
+		for (size_t feature1 = 0; feature1 < featuresCount; ++feature1) {
+			pythonFile << "axs[" << feature1 << ", 0].text(0.0, 0.5, 'F " << (feature1 + 1) << "', transform=axs[" << feature1 << ", 0].transAxes, rotation=0, va='center', ha='right')\n";
+		}
+
+		for (size_t feature2 = 0; feature2 < featuresCount; ++feature2) {
+			pythonFile << "axs[0, " << feature2 << "].text(0.5, 1.0, 'F " << (feature2 + 1) << "', transform=axs[0, " << feature2 << "].transAxes, va='bottom', ha='center')\n";
+		}
+
+		// Plot scatter plots for each house
+		for (size_t h = 0; h < 4; ++h) {
+			for (size_t feature1 = 0; feature1 < featuresCount; ++feature1) {
+				for (size_t feature2 = 0; feature2 < featuresCount; ++feature2) {
+					// Scatter plot for each combination of features
+					pythonFile << "axs[" << feature1 << ", " << feature2 << "].scatter(features" << h << "[:, " << feature1 << "], features" << h << "[:, " << feature2 << "], marker = 'o', s = " << pointSize << ")\n";
+				}
+			}
+		}
+
+		// Remove ticks and labels
+		pythonFile << "for ax in axs.flat:\n";
+		pythonFile << "    ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)\n";
+
+		// Display the plot
+		pythonFile << "plt.show()\n";
+		pythonFile.close();
+	}
+	else {
+		// Handle file writing error
+		std::cerr << "Error writing Python file." << std::endl;
+		return;
+	}
+
+	// Execute Python script based on the platform
+	if (system(("python " + pythonScript + " &").c_str()) != 0) {
+		throw std::runtime_error("Error: Failed to execute the Python command.");
+	}
+
+
+	// Remove the temporary Python script file
+	if (std::remove(pythonScript.c_str()) != 0) {
+		std::cerr << "Error deleting the temporary Python file." << std::endl;
+		return;
+	}
+}
+
+
 double ModelCalculate::Mean(const std::vector<double>& data) {
 	double sum = 0.0;
 	double count = 0;
@@ -203,14 +317,13 @@ void ModelCalculate::HandleMissingValues(std::vector<DataInfo>& datas) {
 
 // Function to set up data for training
 void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const std::vector<size_t>& selectedFeatures,
-	const std::unordered_map<size_t, std::string>& houseIndex, std::vector<std::vector<double>>& weights,
-	std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels) {
-	const size_t houseCount = houseIndex.size();
+	std::vector<std::vector<double>>& weights, std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels) {
+	const size_t targetCount = ModelUtils::targets.size();
 	// Initialize weights randomly
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distribution(-0.5, 0.5);
-	for (size_t i = 0; i < houseCount; ++i) {
+	for (size_t i = 0; i < targetCount; ++i) {
 		for (size_t j = 0; j < selectedFeatures.size(); ++j) {
 			weights[i][j] = distribution(gen);
 		}
@@ -222,10 +335,10 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 			selection.push_back(datas[i].features[feature - 1]);
 		}
 		trainingInputs.push_back(selection);
-		std::vector<double> result(houseCount, 0.0);
-		for (const auto& entry : houseIndex) {
-			if (entry.second == datas[i].labels[0]) {
-				result[entry.first] = 1.0;
+		std::vector<double> result(targetCount, 0.0);
+		for (size_t j = 0; j < targetCount; ++j) {
+			if (ModelUtils::targets[j] == datas[i].labels[0]) {
+				result[j] = 1.0;
 				break;
 			}
 		}
@@ -235,28 +348,20 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 
 void ModelCalculate::CreateModel(std::vector<DataInfo>& datas) {
 	try {
+		extensionScatterPlotMatrix(datas, 6);
 		// Handle missing values
 		ModelCalculate::HandleMissingValues(datas);
 		// Normalize training data
 		std::vector<double> featureMeans, featureStdDevs;
 		ModelUtils::NormalizeData(datas, featureMeans, featureStdDevs);
 		// Set up data for training
-		std::vector<size_t> selectedFeatures = { 3, 4, 7 };
-		std::unordered_map<size_t, std::string> houseIndex = {
-			{ 0, "Apple_Black_rot" },
-			{ 1, "Apple_healthy" },
-			{ 2, "Apple_rust" },
-			{ 3, "Apple_scab" },
-			{ 4, "Grape_Black_rot" },
-			{ 5, "Grape_Esca" },
-			{ 6, "Grape_healthy" },
-			{ 7, "Grape_spot" }
-		};
-		std::vector<std::vector<double>> weights(houseIndex.size(), std::vector<double>(selectedFeatures.size(), 0.0));
+		std::vector<size_t> selectedFeatures = { 1, 2, 5 };
+
+		std::vector<std::vector<double>> weights(ModelUtils::targets.size(), std::vector<double>(selectedFeatures.size(), 0.0));
 		std::vector<std::vector<double>> inputs, targets;
-		ModelCalculate::SetupTrainingData(datas, selectedFeatures, houseIndex, weights, inputs, targets);
+		ModelCalculate::SetupTrainingData(datas, selectedFeatures, weights, inputs, targets);
 		// Train the model
-		ModelCalculate::LogisticRegressionTrainning(weights, inputs, targets, 100);
+		ModelCalculate::LogisticRegressionTrainning(weights, inputs, targets, 1000);
 		// Save weights and normalization parameters
 		ModelUtils::SaveWeightsAndNormalizationParameters(weights, featureMeans, featureStdDevs, "models.save");
 	}

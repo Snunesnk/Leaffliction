@@ -23,7 +23,7 @@ public:
 	static void GradientDescent(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& target, const size_t house);
 	static void LogisticRegressionTrainning(std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& targets, const size_t epochs);
 	static void HandleMissingValues(std::vector<DataInfo>& datas);
-	static void SetupTrainingData(const std::vector<DataInfo>& datas, const std::vector<size_t>& selectedFeatures, const std::unordered_map<size_t, std::string>& houseIndex, std::vector<std::vector<double>>& weights, std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels);
+	static void SetupTrainingData(const std::vector<DataInfo>& datas, const std::vector<size_t>& selectedFeatures, std::vector<std::vector<double>>& weights, std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels);
 	static void CreateModel(std::vector<DataInfo>& datas);
 };
 

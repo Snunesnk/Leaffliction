@@ -5,6 +5,17 @@
 #include <limits>
 #include <stdexcept>
 
+const std::vector<std::string> ModelUtils::targets = {
+	"Apple_Black_rot",
+	"Apple_healthy",
+	"Apple_rust",
+	"Apple_scab",
+	"Grape_Black_rot",
+	"Grape_Esca",
+	"Grape_healthy",
+	"Grape_spot"
+};
+
 // Function to check if a string represents a number, allowing for negative numbers and decimal points.
 bool ModelUtils::isNumber(const std::string& str) {
 	bool hasDigit = false;
@@ -54,7 +65,7 @@ void determineFeaturesStartIndex(std::ifstream& file, size_t headersCount, size_
 
 	// Iterating through lines to find the first non-empty numeric element in each column.
 	while (std::getline(file, line)) {
-		if (linesCount++ > 10000) {
+		if (linesCount++ > 20000) {
 			throw std::runtime_error("Error: Wrong file size");
 		}
 

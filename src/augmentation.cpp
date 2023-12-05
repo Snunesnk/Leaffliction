@@ -80,7 +80,7 @@ void displayMosaic(const std::string& source, std::string& destination) {
 int main(int argc, char* argv[]) {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory/source_image> -dst <destination_directory> -gen <generation_max>");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory/source_image> -dst <destination_directory> [-gen <generation_max>]");
 		}
 		std::string source;
 		std::string destination;
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
 				++i;
 			}
 			else if (arg == "-h") {
-				std::cout << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory> -gen <generation_max>" << std::endl;
+				std::cout << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory> [-gen <generation_max>]" << std::endl;
 				return 0;
 			}
 		}

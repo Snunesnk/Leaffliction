@@ -164,45 +164,35 @@ void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int
 			}
 		}
 	}
-
-	//// Nom du fichier CSV
-	//std::string filename = "data.csv";
-
-	//// Ouvrir le fichier en mode écriture
-	//std::ofstream outputFile(filename);
-
-	//if (outputFile.is_open()) {
-	//	// Écriture des données dans le fichier CSV
-	//	for (size_t i = 0; i < datas.size(); i++) {
-	//		for (size_t j = 0; j < datas[i].size(); j++) {
-	//			outputFile << datas[i][j];
-	//			if (j < datas[i].size() - 1) {
-	//				outputFile << ",";
-	//			}
-	//			else {
-	//				outputFile << std::endl;
-	//			}
-	//		}
-	//	}
-
-	//	// Fermer le fichier
-	//	outputFile.close();
-
-	//	std::cout << "Datas saved to " << filename << std::endl;
-	//}
-	//else {
-	//	std::cerr << "Unable to open " << filename << std::endl;
-	//}
-
-	auto [headers, featuresStartIndex] = ModelUtils::LoadDataFile("data.csv", datasInfo);
-
+	
 	for (auto i = 0; i < datas.size(); i++) {
 		datasInfo.push_back(DataInfo());
 		datasInfo.back().index = std::stoi(datas[i][0]);
 		datasInfo.back().labels.push_back(datas[i][1]);
 		for (auto j = 0; j < labels.size(); j++) {
-			datasInfo.back().features.push_back(std::stod(datas[i][1]));
+			datasInfo.back().features.push_back(std::stod(datas[i][j + 3]));
 		}
+	}
+	// if csv creation
+	std::string filename = "data.csv";
+	std::ofstream outputFile(filename);
+	if (outputFile.is_open()) {
+		for (size_t i = 0; i < datas.size(); i++) {
+			for (size_t j = 0; j < datas[i].size(); j++) {
+				outputFile << datas[i][j];
+				if (j < datas[i].size() - 1) {
+					outputFile << ",";
+				}
+				else {
+					outputFile << std::endl;
+				}
+			}
+		}
+		outputFile.close();
+		std::cout << "Datas saved to " << filename << std::endl;
+	}
+	else {
+		throw std::runtime_error("Unable to open " + filename);
 	}
 }
 
@@ -237,9 +227,26 @@ int main(int argc, char* argv[]) {
 		}
 		std::cout << source << std::endl;
 		std::vector<DataInfo> datasInfo;
-		// Augmentations based on generation -> function needed
-		// Transformations based on generation -> function needed
-		createDatasAndCSV(source, datasInfo, generation);
+
+		bool checker = false;
+		for (const auto& entry : std::filesystem::directory_iterator("./")) {
+			std::filesystem::path entryPath = entry.path();
+			if (std::filesystem::is_regular_file(entryPath)) {
+				std::string filename = entryPath.filename().generic_string();
+				if (filename == "data.csv") {
+					checker = true;
+					break;
+				}
+			}
+		}
+		if (checker == false) {
+			// Augmentations based on generation -> function needed
+			// Transformations based on generation -> function needed
+			createDatasAndCSV(source, datasInfo, generation);
+		}
+		else {
+			ModelUtils::LoadDataFile("data.csv", datasInfo);
+		}
 		ModelCalculate::CreateModel(datasInfo);
 	}
 	catch (const std::exception& e) {

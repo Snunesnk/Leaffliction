@@ -320,9 +320,8 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 	std::vector<std::vector<double>>& weights, std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels) {
 	const size_t targetCount = ModelUtils::targets.size();
 	// Initialize weights randomly
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<double> distribution(-0.5, 0.5);
+	std::mt19937 gen(42);
+	std::uniform_real_distribution<double> distribution(-1.0, 1.0);
 	for (size_t i = 0; i < targetCount; ++i) {
 		for (size_t j = 0; j < selectedFeatures.size(); ++j) {
 			weights[i][j] = distribution(gen);
@@ -348,20 +347,20 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 
 void ModelCalculate::CreateModel(std::vector<DataInfo>& datas) {
 	try {
-		extensionScatterPlotMatrix(datas, 6);
+		extensionScatterPlotMatrix(datas, 8);
 		// Handle missing values
-		ModelCalculate::HandleMissingValues(datas);
+		//ModelCalculate::HandleMissingValues(datas);
 		// Normalize training data
 		std::vector<double> featureMeans, featureStdDevs;
 		ModelUtils::NormalizeData(datas, featureMeans, featureStdDevs);
 		// Set up data for training
-		std::vector<size_t> selectedFeatures = { 1, 2, 5 };
+		std::vector<size_t> selectedFeatures = { 1, 2, 3, 4, 5, 6 };
 
 		std::vector<std::vector<double>> weights(ModelUtils::targets.size(), std::vector<double>(selectedFeatures.size(), 0.0));
 		std::vector<std::vector<double>> inputs, targets;
 		ModelCalculate::SetupTrainingData(datas, selectedFeatures, weights, inputs, targets);
 		// Train the model
-		ModelCalculate::LogisticRegressionTrainning(weights, inputs, targets, 1000);
+		ModelCalculate::LogisticRegressionTrainning(weights, inputs, targets, 2000);
 		// Save weights and normalization parameters
 		ModelUtils::SaveWeightsAndNormalizationParameters(weights, featureMeans, featureStdDevs, "models.save");
 	}

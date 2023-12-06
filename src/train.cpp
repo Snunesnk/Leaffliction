@@ -100,33 +100,26 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 
 void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int generation) {
 	std::vector<std::vector<std::string>> datas;
-	std::vector<std::string> labels = { "T1", "T2", "T3", "T4", "T5", "T6" };
-	std::vector<int> positions = { 3, 4, 7, 8, 9, 10 };
+	std::vector<std::string> features = { "T1", "T2", "T3", "T4", "T5", "T6" };
+	std::vector<int> headersIndex = { 3, 4, 7, 8, 9, 10 };
 	for (const auto& entry : std::filesystem::directory_iterator(source)) {
 
 		const std::string target = entry.path().filename().generic_string();
-		bool v = false;
-		for (auto j = 0; j < ModelUtils::targets.size(); j++) {
-			if (target == ModelUtils::targets[j]) {
-				v = true;
-				break;
-			}
-		}
-		if (v == false) {
+		// Next if not expected directory
+		if (std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), target) == ModelUtils::targets.end()) {
 			continue;
 		}
 		const std::string entryPath = entry.path().generic_string() + "/";
-		const std::vector<std::string> files = ImageUtils::GgetImagesInDirectory(entryPath);
+		const std::vector<std::string> files = ImageUtils::GetImagesInDirectory(entryPath, generation);
 
 		auto feature = -1;
-		std::vector<std::string> elems(positions.back() + 1, "");
+		std::vector<std::string> elems(headersIndex.back() + 1, "");
 		for (auto i = 0; i < files.size(); i++) {
 			std::string filePath = entryPath + files[i];
 			cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
 			if (image.empty()) {
 				throw std::runtime_error("Unable to load the image.");
 			}
-			bool checker = false;
 			// New line
 			if (feature == -1) {
 				elems[0] = std::to_string(datas.size());
@@ -140,59 +133,58 @@ void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int
 				feature++;
 			}
 			// Features
-			for (auto j = 0; j < labels.size(); j++) {
-				size_t position = files[i].find(labels[j]);
+			for (auto j = 0; j < features.size(); j++) {
+				size_t position = files[i].find(features[j]);
 				if (position != std::string::npos) {
-					std::vector<double> result = getTransformtionInfo(image, j);
+					if (!elems[headersIndex[j]].empty()) {
+						throw std::runtime_error("Unable to create data: something wrong.");
+					}
+					std::vector<double> result = getTransformtionInfo(image, j + 1);
 					for (auto k = 0; k < result.size(); k++) {
-						elems[positions[j] + k] = std::to_string(result[k]);
+						elems[headersIndex[j] + k] = std::to_string(result[k]);
 					}
 					feature++;
-					checker = true;
-				}
-			}
-			// When line completed, push it and start new line
-			if (feature == labels.size()) {
-				feature = -1;
-				datas.push_back(elems);
-				if (--generation == 0) {
 					break;
 				}
 			}
-			else if (checker == false) {
-				throw std::runtime_error("Unable to create data: image missing.");
+			// When line completed, push it and start new line
+			if (feature == features.size()) {
+				feature = -1;
+				datas.push_back(elems);
+				elems = std::vector<std::string>(headersIndex.back() + 1, "");
 			}
 		}
 	}
-	
+
 	for (auto i = 0; i < datas.size(); i++) {
 		datasInfo.push_back(DataInfo());
 		datasInfo.back().index = std::stoi(datas[i][0]);
 		datasInfo.back().labels.push_back(datas[i][1]);
-		for (auto j = 0; j < labels.size(); j++) {
+		datasInfo.back().labels.push_back(datas[i][2]);
+		for (auto j = 0; j < 8; j++) {
 			datasInfo.back().features.push_back(std::stod(datas[i][j + 3]));
 		}
 	}
-	// if csv creation
+	// for tests
 	std::string filename = "data.csv";
-	std::ofstream outputFile(filename);
-	if (outputFile.is_open()) {
+	std::ofstream outputfile(filename);
+	if (outputfile.is_open()) {
 		for (size_t i = 0; i < datas.size(); i++) {
 			for (size_t j = 0; j < datas[i].size(); j++) {
-				outputFile << datas[i][j];
+				outputfile << datas[i][j];
 				if (j < datas[i].size() - 1) {
-					outputFile << ",";
+					outputfile << ",";
 				}
 				else {
-					outputFile << std::endl;
+					outputfile << std::endl;
 				}
 			}
 		}
-		outputFile.close();
-		std::cout << "Datas saved to " << filename << std::endl;
+		outputfile.close();
+		std::cout << "datas saved to " << filename << std::endl;
 	}
 	else {
-		throw std::runtime_error("Unable to open " + filename);
+		throw std::runtime_error("unable to open " + filename);
 	}
 }
 
@@ -202,7 +194,7 @@ int main(int argc, char* argv[]) {
 			throw std::runtime_error("Usage: " + (std::string)argv[0] + " [-gen <generation_max>]");
 		}
 		std::string source = argv[1];
-		int generation = std::numeric_limits<int>::max();
+		int generation = 1640;
 
 		// Parse command-line arguments
 		for (int i = 2; i < argc; ++i) {
@@ -210,6 +202,9 @@ int main(int argc, char* argv[]) {
 			if (arg == "-gen" && i + 1 < argc) {
 				try {
 					generation = std::atoi(argv[i + 1]);
+					if (generation > 1640) {
+						generation = 1640;
+					}
 				}
 				catch (...) {
 					throw std::runtime_error("Unable to read the -gen value.");
@@ -225,28 +220,84 @@ int main(int argc, char* argv[]) {
 		if (source.back() != '/') {
 			source += "/";
 		}
-		std::cout << source << std::endl;
+
+#ifdef _MSC_VER
+		//images
+		//	|--- Apple_Black_rot
+		//	|    '--- 620 files
+		//	|--- Apple_healthy
+		//	|    '--- 1640 files
+		//	|--- Apple_rust
+		//	|    '--- 275 files
+		//	|--- Apple_scab
+		//	|    '--- 629 files
+		//	|--- Grape_Black_rot
+		//	|    '--- 1178 files
+		//	|--- Grape_Esca
+		//	|    '--- 1382 files
+		//	|--- Grape_healthy
+		//	|    '--- 422 files
+		//	|--- Grape_spot
+		//	|    '--- 1075 files
+		//	'--- 0 files
+		generation = 20;
+#endif
+
 		std::vector<DataInfo> datasInfo;
 
 		bool checker = false;
 		for (const auto& entry : std::filesystem::directory_iterator("./")) {
 			std::filesystem::path entryPath = entry.path();
 			if (std::filesystem::is_regular_file(entryPath)) {
-				std::string filename = entryPath.filename().generic_string();
-				if (filename == "data.csv") {
+				if (entryPath.filename().generic_string() == "data.csv") {
 					checker = true;
 					break;
 				}
 			}
 		}
 		if (checker == false) {
-			// Augmentations based on generation -> function needed
-			// Transformations based on generation -> function needed
-			createDatasAndCSV(source, datasInfo, generation);
+			// Augmentations limited by -gen
+			std::cout << "Doing augmentations if needed..." << std::endl;
+			int augmentationCout = 0;
+			for (const auto& entry : std::filesystem::directory_iterator(source)) {
+				std::filesystem::path entryPath = entry.path();
+				if (std::filesystem::is_directory(entryPath)) {
+					std::string directoryPath = entryPath.generic_string() + "/";
+
+					int tmp_generation = generation;
+					for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+						if (entry.is_regular_file() && entry.path().extension() == ".JPG") {
+							if (--tmp_generation == 0) {
+								break;
+							}
+						}
+					}
+					if (tmp_generation > 0) {
+						augmentationCout += tmp_generation;
+						ImageUtils::SaveAFromToDirectory(directoryPath, directoryPath, tmp_generation);
+					}
+				}
+			}
+			std::cout << "Augmentations generated : " << augmentationCout << std::endl;
+			// Transformations limited by -gen
+			std::cout << "Doing transformation..." << std::endl;
+			for (const auto& entry : std::filesystem::directory_iterator(source)) {
+				std::filesystem::path entryPath = entry.path();
+				if (std::filesystem::is_directory(entryPath)) {
+					std::string directoryPath = entryPath.generic_string() + "/";
+
+					ImageUtils::SaveTFromToDirectory(directoryPath, directoryPath, generation);
+				}
+			}
+			std::cout << "Transformations generated : " << generation * 8 * 6 << std::endl;
+			std::cout << "Doing data generation..." << std::endl;
+			createDatasAndCSV(source, datasInfo, generation * 7);
 		}
 		else {
+			std::cout << "Loading data.csv..." << std::endl;
 			ModelUtils::LoadDataFile("data.csv", datasInfo);
 		}
+		std::cout << "Creating model..." << std::endl;
 		ModelCalculate::CreateModel(datasInfo);
 	}
 	catch (const std::exception& e) {

@@ -77,60 +77,7 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	}
 }
 
-void SaveTransformationsFromToDirectory(std::string& source, std::string& destination, int generation) {
-	// Check if source and destination are provided
-	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
-		throw std::runtime_error("Missing source or destination directory.");
-	}
-	if (source.back() != '/') {
-		source += "/";
-	}
-	if (destination.back() != '/') {
-		destination += "/";
-	}
-	std::vector<std::string> names = ImageUtils::GgetImagesInDirectory(source);
-	for (auto i = 0; i < names.size(); i++) {
-		// Load an image from the specified file path
-		cv::Mat originalImage = cv::imread(source + names[i], cv::IMREAD_COLOR);
-		if (originalImage.empty()) {
-			throw std::runtime_error("Unable to load the image.");
-		}
-		std::vector<cv::Mat> images;
 
-		// Create a vector to store multiple copies of the loaded image
-		for (int i = 0; i < 6; i++) {
-			images.push_back(originalImage.clone());
-		}
-
-		// Apply various image processing operations to different copies of the image
-		std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[0]);
-		for (int i = 0; i < 6; i++) {
-			ImageProcessing::cropImageWithPoints(images[i], points);
-		}
-		ImageProcessing::EqualizeHistogramColor(images[1]);
-		ImageProcessing::EqualizeHistogramSaturation(images[2]);
-		ImageProcessing::EqualizeHistogramValue(images[3]);
-		ImageProcessing::ConvertToGrayScale(images[4]);
-		ImageProcessing::EqualizeHistogram(images[5]);
-
-		// Save the processed images with their respective labels
-		std::vector<std::string> labels = { "T1", "T2", "T3", "T4", "T5", "T6" };
-		ImageUtils::SaveImages(destination + names[i], images, labels);
-
-		// Progression
-		int progress = (i + 1) * 100 / names.size();
-		int numComplete = (progress * 50) / 100;
-		int numRemaining = 50 - numComplete;
-		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
-		std::cout << "\033[A";
-		if ((generation -= 6) <= 0) {
-			std::cout << "\nGeneration ended at -gen parameter." << std::endl;
-			return;
-		}
-		break;
-	}
-	std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush;
-}
 
 void displayImageTranformations(const std::string& source) {
 	// Load an image from the specified file path
@@ -151,7 +98,7 @@ void displayImageTranformations(const std::string& source) {
 	// Apply various image processing operations to different copies of the image
 	std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[1]);
 	for (int i = 1; i < 7; i++) {
-		ImageProcessing::cropImageWithPoints(images[i], points);
+		ImageProcessing::CropImageWithPoints(images[i], points);
 	}
 	ImageProcessing::EqualizeHistogramColor(images[2]);
 	ImageProcessing::EqualizeHistogramSaturation(images[3]);
@@ -180,7 +127,7 @@ int main(int argc, char* argv[]) {
 		}
 		std::string source;
 		std::string destination;
-		int generation = std::numeric_limits<int>::max();
+		int generation = 1640;
 
 		// Parse command-line arguments
 		for (int i = 1; i < argc; ++i) {
@@ -196,6 +143,9 @@ int main(int argc, char* argv[]) {
 			else if (arg == "-gen" && i + 1 < argc) {
 				try {
 					generation = std::atoi(argv[i + 1]);
+					if (generation > 1640) {
+						generation = 1640;
+					}
 				}
 				catch (...) {
 					throw std::runtime_error("Unable to read the -gen value.");
@@ -229,13 +179,18 @@ int main(int argc, char* argv[]) {
 		source = "images/Grape_Esca/";
 		destination = "images/test";
 #endif
-
+		if (source.back() != '/') {
+			source += "/";
+		}
+		if (destination.back() != '/') {
+			destination += "/";
+		}
 		// Check if source is a .JPG file
 		if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
 			displayImageTranformations(source);
 		}
 		else {
-			SaveTransformationsFromToDirectory(source, destination, generation);
+			ImageUtils::SaveTFromToDirectory(source, destination, generation);
 		}
 	}
 	catch (const std::exception& e) {

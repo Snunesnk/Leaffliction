@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 50;
+		generation = 300;
 #endif
 
 		std::vector<DataInfo> datasInfo;
@@ -283,6 +283,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		if (checker == false) {
+
 			// Augmentations limited by -gen
 			std::cout << "Doing augmentations if needed..." << std::endl;
 			int augmentationCout = 0;
@@ -290,7 +291,15 @@ int main(int argc, char* argv[]) {
 				std::filesystem::path entryPath = entry.path();
 				if (std::filesystem::is_directory(entryPath)) {
 					std::string directoryPath = entryPath.generic_string() + "/";
-
+					for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+						if (std::filesystem::is_regular_file(entry)) {
+							std::string filename = entry.path().filename().string();
+							if (filename.find('_') != std::string::npos) {
+								std::filesystem::remove(entry.path());
+								std::cout << "Delete file : " << entry.path() << "\r\033[K";
+							}
+						}
+					}
 					int tmp_generation = generation;
 					for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
 						if (entry.is_regular_file() && entry.path().extension() == ".JPG") {
@@ -299,6 +308,7 @@ int main(int argc, char* argv[]) {
 							}
 						}
 					}
+					
 					if (tmp_generation > 0) {
 						augmentationCout += tmp_generation;
 						ImageUtils::SaveAFromToDirectory(directoryPath, directoryPath, tmp_generation);

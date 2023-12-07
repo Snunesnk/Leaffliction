@@ -81,15 +81,7 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
 		throw std::runtime_error("Missing source or destination directory.");
 	}
-	for (const auto& entry : std::filesystem::directory_iterator(destination)) {
-		if (std::filesystem::is_regular_file(entry)) {
-			std::string nomFichier = entry.path().filename().string();
-			if (nomFichier.find('T') != std::string::npos) {
-				std::filesystem::remove(entry.path());
-				std::cout << "Deleted file : " << entry.path() << "\r\033[K";
-			}
-		}
-	}
+
 	std::vector<std::string> names = ImageUtils::GetImagesInDirectory(source, generation);
 	for (auto i = 0; i < names.size(); i++) {
 		// Load an image from the specified file path

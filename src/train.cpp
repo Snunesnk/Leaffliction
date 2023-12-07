@@ -8,33 +8,67 @@
 #include "model_calculate.h"
 
 std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformation) {
-	if (transformation == 1) { //Shape
+	if (transformation == 1) {
+		// Aspect ratio
 		std::vector<cv::Point> rectanglePoints = ImageProcessing::getMinimumBoundingRectanglePoints(image);
-		// Dessinez le parallélogramme sur l'image
-		for (int i = 0; i < rectanglePoints.size(); ++i) {
-			cv::line(image, rectanglePoints[i], rectanglePoints[(i + 1) % rectanglePoints.size()], cv::Scalar(255, 0, 255), 2);
-		}
 		return { ImageProcessing::calculateAspectRatioOfObjects(image) };
 	}
-	else if (transformation != 2) 
-	{
+	else if (transformation == 2) {
+		// Means colors
+		std::vector<double> meansRGB(3);
+		double countRGB = 0;
+		for (int i = 0; i < image.rows; i++) {
+			for (int j = 0; j < image.cols; j++) {
+				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
+				if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
+					meansRGB[0] += pixel[0];
+					meansRGB[1] += pixel[1];
+					meansRGB[2] += pixel[2];
+					countRGB++;
+				}
+			}
+		}
+
+		//// Means HSV
 		//cv::Mat hsvImage;
 		//cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+		//std::vector<double> meansHSV(2);
+		//double countHSV = 0;
+		//for (int i = 0; i < hsvImage.rows; i++) {
+		//	for (int j = 0; j < hsvImage.cols; j++) {
+		//		cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
+		//		if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
+		//			cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
+		//			meansHSV[0] += hsvpixel[0];
+		//			meansHSV[1] += hsvpixel[1];
+		//			meansHSV[2] += hsvpixel[2];
+		//			countHSV++;
+		//		}
+		//	}
+		//}
+
+		if (countRGB /*&& countHSV*/)
+			return { 
+			meansRGB[0] / countRGB, meansRGB[1] / countRGB, meansRGB[2] / countRGB,
+			/*meansHSV[0] / countHSV,*/ /*meansHSV[1] / countHSV, meansHSV[2] / countHSV*/
+		};
+		else
+			return { 0, 0, 0 };
+	}
+	else if (transformation <= 5) {
+		// Pct selected hue 
 		double mean = 0;
 		double count = 0;
 		for (int i = 0; i < image.rows; i++) {
 			for (int j = 0; j < image.cols; j++) {
 				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
 				if (pixel[0] >= 250 && pixel[1] <= 5 && pixel[2] <= 5) {
-					//cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-					count++;// += hsvpixel[0];
-					//count++;
+					count++;
 				}
 				else if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-					//cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-					mean++;// += hsvpixel[0];
+					mean++;
 					count++;
-				}			
+				}
 			}
 		}
 		if (count)
@@ -42,147 +76,80 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 		else
 			return { 0 };
 	}
-	else if (transformation == 2) //HEC
-	{
-		std::vector<double> means(3);
-		double count = 0;
-		for (int i = 0; i < image.rows; i++) {
-			for (int j = 0; j < image.cols; j++) {
+	else {
+		// Means HSV
+		cv::Mat hsvImage;
+		cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+		std::vector<double> meansHSV(2);
+		double countHSV = 0;
+		for (int i = 0; i < hsvImage.rows; i++) {
+			for (int j = 0; j < hsvImage.cols; j++) {
 				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
 				if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-					means[0] += pixel[0];
-					means[1] += pixel[1];
-					means[2] += pixel[2];
-					count++;
-				}
-			}
-		}
-		if (count)
-			return { means[0] / count, means[1] / count, means[2] / count };
-		else
-			return { 0, 0, 0 };
-	}
-	else if (transformation == 3) { //HES
-		cv::Mat hsvImage;
-		cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-		double mean = 0;
-		int count = 0;
-		for (int i = 0; i < hsvImage.rows; i++) {
-			for (int j = 0; j < hsvImage.cols; j++) {
-				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-				if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
 					cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-					mean += hsvpixel[1];
-					count++;
+					meansHSV[0] += hsvpixel[0];
+					meansHSV[1] += hsvpixel[1];
+					meansHSV[2] += hsvpixel[2];
+					countHSV++;
 				}
 			}
 		}
-		return { mean / count };
-	}
-	else if (transformation == 4) { //HEV
-		cv::Mat hsvImage;
-		cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-		double mean = 0;
-		int count = 0;
-		for (int i = 0; i < hsvImage.rows; i++) {
-			for (int j = 0; j < hsvImage.cols; j++) {
-				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-				if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
-					cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-					mean += hsvpixel[2];
-					count++;
-				}
-			}
-		}
-		return { mean / count };
-	}
-	else if (transformation == 5) { //Grey
-		double mean = 0;
-		double count = 0;
-		for (int i = 0; i < image.rows; i++) {
-			for (int j = 0; j < image.cols; j++) {
-				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-				if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
-					mean += pixel[0];
-					count++;
-				}
-			}
-		}
-		return { mean / count };
-	}
-	else if (transformation == 6) { //HEG
-		double mean = 0;
-		double count = 0;
-		for (int i = 0; i < image.rows; i++) {
-			for (int j = 0; j < image.cols; j++) {
-				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-				if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
-					mean += pixel[0];
-					count++;
-				}
-			}
-		}
-		return { mean / count };
+		return { meansHSV[0] / countHSV, meansHSV[1] / countHSV, meansHSV[2] / countHSV };
 	}
 	return {};
 }
 
 void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int generation) {
+	const std::vector<std::string> features = { "T1", "T2", "T3", "T4", "T5", "T6" };
 	std::vector<std::vector<std::string>> datas;
-	std::vector<std::string> features = { "T1", "T2", "T3", "T4", "T5", "T6" };
-	std::vector<int> headersIndex = { 3, 4, 7, 8, 9, 10 };
-	for (const auto& entry : std::filesystem::directory_iterator(source)) {
 
+	for (const auto& entry : std::filesystem::directory_iterator(source)) {
 		const std::string target = entry.path().filename().generic_string();
 		// Next if not expected directory
 		if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), target) == ModelUtils::types.end()) {
 			continue;
 		}
-		const std::string entryPath = entry.path().generic_string() + "/";
-		const std::vector<std::string> files = ImageUtils::GetImagesInDirectory(entryPath, generation);
-
+		const std::string source = entry.path().generic_string() + "/";
+		const std::vector<std::string> files = ImageUtils::GetImagesInDirectory(source, generation);
 		auto feature = -1;
-		std::vector<std::string> elems(headersIndex.back() + 1, "");
+
+		std::vector<std::string> lineElements;
 		for (auto i = 0; i < files.size(); i++) {
-			std::string filePath = entryPath + files[i];
+			std::string filePath = source + files[i];
 			cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
 			if (image.empty()) {
 				throw std::runtime_error("Unable to load the image.");
 			}
 			// New line
 			if (feature == -1) {
-				elems[0] = std::to_string(datas.size());
-				elems[1] = target;
+				lineElements.push_back(std::to_string(datas.size()));
+				lineElements.push_back(target);
 				auto position = files[i].find_last_of('_');
 				if (position == std::string::npos) {
 					position = files[i].find_last_of('.');
 				}
-				const std::string name = files[i].substr(0, position);
-				elems[2] = name;
+				lineElements.push_back(files[i].substr(0, position));
 				feature++;
 			}
 			// Features
 			for (auto j = 0; j < features.size(); j++) {
 				size_t position = files[i].find(features[j]);
 				if (position != std::string::npos) {
-					if (!elems[headersIndex[j]].empty()) {
-						throw std::runtime_error("Unable to create data: something wrong.");
-					}
-					std::vector<double> result = getTransformtionInfo(image, j + 1);
+					std::vector<double> result = getTransformtionInfo(image, features[j].back() - '0');
 					for (auto k = 0; k < result.size(); k++) {
-						elems[headersIndex[j] + k] = std::to_string(result[k]);
+						lineElements.push_back(features[j].back() + std::to_string(k) + "V" + std::to_string(result[k]));
 					}
 					feature++;
 					break;
 				}
 			}
-			// Line display
+			// Line filePath
 			std::cout << "\r\033[K" << filePath;
 			// When line completed, push it and start new line
 			if (feature == features.size()) {
 				feature = -1;
-				datas.push_back(elems);
-				elems = std::vector<std::string>(headersIndex.back() + 1, "");
+				datas.push_back(lineElements);
+				lineElements.clear();
 				// Progression
 				int progress = (i + 1) * 100 / files.size();
 				int numComplete = (progress * 50) / 100;
@@ -194,16 +161,38 @@ void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int
 		std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 	}
 
+	// Sort features
+	for (auto i = 0; i < datas.size(); i++) {
+		std::vector<std::string> line = datas[i];
+		line.erase(line.begin(), line.begin() + 3);
+		std::sort(line.begin(), line.end());
+
+		for (auto j = 0; j < line.size(); j++) {
+			datas[i][j + 3] = line[j].erase(0, line[j].find_last_of('V') + 1);
+		}
+	}
+
+	//// Print some lines
+	//auto counter = 0;
+	//for (const auto& row : datas) {
+	//	for (const std::string& value : row) {
+	//		std::cout << value << " ";
+	//	}
+	//	std::cout << std::endl;
+	//	if (++counter == 5) break;
+	//}
+
 	for (auto i = 0; i < datas.size(); i++) {
 		datasInfo.push_back(DataInfo());
 		datasInfo.back().index = std::stoi(datas[i][0]);
 		datasInfo.back().labels.push_back(datas[i][1]);
 		datasInfo.back().labels.push_back(datas[i][2]);
-		for (auto j = 0; j < 8; j++) {
+		for (auto j = 0; j < datas[i].size() - 3; j++) {
 			datasInfo.back().features.push_back(std::stod(datas[i][j + 3]));
 		}
 	}
-	// for tests
+
+	//// Save CSV
 	//std::string filename = "data.csv";
 	//std::ofstream outputfile(filename);
 	//if (outputfile.is_open()) {
@@ -278,7 +267,7 @@ int main(int argc, char* argv[]) {
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 42;
+		generation = 50;
 #endif
 
 		std::vector<DataInfo> datasInfo;

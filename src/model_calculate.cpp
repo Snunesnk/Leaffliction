@@ -272,13 +272,16 @@ void ModelCalculate::GradientDescent(const std::vector<std::vector<double>>& inp
 
 void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& inputs,
 	const std::vector<std::vector<double>>& types, const size_t epochs) {
+
 	const size_t typesCount = weights.size();
-	std::cout << std::left << std::setw(std::to_string(epochs).length() + 8) << "Epochs"
-		<< std::setw(10) << "Loss 1"
-		<< std::setw(10) << "Loss 2"
-		<< std::setw(10) << "Loss 3"
-		<< std::setw(10) << "Loss 4"
-		<< std::setw(10) << "Accuracy" << std::endl;
+
+	// Header
+	std::cout << std::left << std::setw(std::to_string(epochs).length() + 8) << "Epochs" << std::setw(10);
+	for (auto counter = 1; counter <= typesCount; counter++) {
+		std::cout << "Loss " + std::to_string(counter) << std::setw(10);
+	}
+	std::cout << std::setw(10) << "Accuracy" << std::endl;
+
 	// Entraînement du modèle
 	for (size_t epoch = 0; epoch < epochs; ++epoch) {
 		for (size_t type = 0; type < typesCount; type++) {
@@ -354,13 +357,16 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& datas) {
 		std::vector<double> featureMeans, featureStdDevs;
 		ModelUtils::NormalizeData(datas, featureMeans, featureStdDevs);
 		// Set up data for training
-		std::vector<size_t> selectedFeatures = { 1, 2, 3, 4, 5, 6, 7, 8 };
-
+		std::vector<size_t> selectedFeatures;
+		auto counter = 0;
+		for (auto f : datas[0].features) {
+			selectedFeatures.push_back(++counter);
+		}
 		std::vector<std::vector<double>> weights(ModelUtils::types.size(), std::vector<double>(selectedFeatures.size(), 0.0));
 		std::vector<std::vector<double>> inputs, types;
 		ModelCalculate::SetupTrainingData(datas, selectedFeatures, weights, inputs, types);
 		// Train the model
-		ModelCalculate::LogisticRegressionTrainning(weights, inputs, types, 2000);
+		ModelCalculate::LogisticRegressionTrainning(weights, inputs, types, 5000);
 		// Save weights and normalization parameters
 		ModelUtils::SaveWeightsAndNormalizationParameters(weights, featureMeans, featureStdDevs, "models.save");
 	}

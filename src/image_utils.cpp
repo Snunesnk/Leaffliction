@@ -37,25 +37,6 @@ void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::M
 	}
 }
 
-bool comparerNumeriquement(const std::string& a, const std::string& b) {
-	// Trouvez la position de ')' dans les chaînes a et b
-	size_t posA = a.find(')');
-	size_t posB = b.find(')');
-
-	std::string numeroA = a.substr(a.find('(') + 1, posA - a.find('(') - 1);
-	std::string numeroB = b.substr(b.find('(') + 1, posB - b.find('(') - 1);
-
-	try {
-		// Convertissez les sous-chaînes en entiers
-		int intA = std::stoi(numeroA);
-		int intB = std::stoi(numeroB);
-		return intA < intB;
-	}
-	catch (...) {
-		throw std::runtime_error("Error filename");
-	}
-}
-
 std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& directoryPath, int generation) {
 	std::vector<std::string> images;
 	size_t imageCount = 0;
@@ -68,10 +49,26 @@ std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& dir
 		}
 	}
 
-	std::sort(images.begin(), images.end(), comparerNumeriquement);
+	std::sort(images.begin(), images.end(), [](const std::string& a, const std::string& b) {
+			size_t posA = a.find(')');
+			size_t posB = b.find(')');
+
+			std::string numeroA = a.substr(a.find('(') + 1, posA - a.find('(') - 1);
+			std::string numeroB = b.substr(b.find('(') + 1, posB - b.find('(') - 1);
+
+			try {
+				int intA = std::stoi(numeroA);
+				int intB = std::stoi(numeroB);
+				return intA < intB;
+			}
+			catch (...) {
+				throw std::runtime_error("Error filename");
+			}
+		}
+	);
 
 	if (generation >= 0 && generation < images.size()) {
-		images.erase(images.begin() + generation + 1, images.end());
+		images.erase(images.begin() + generation, images.end());
 	}
 
 	std::cout << directoryPath << std::endl;
@@ -108,34 +105,23 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 
 		// Apply various image processing operations to different copies of the image
 		std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[0]);
-		images[1] = originalImage.clone();
+		//images[1] = originalImage.clone();
 		// Plage pour le vert
 		cv::Scalar green_lower(40, 0, 0); // Basse limite (H, S, V)
 		cv::Scalar green_upper(100, 255, 255); // Haute limite (H, S, V)
 		ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
 		// Plage pour le rouge (rouge pur)
 		cv::Scalar red_lower1(0, 0, 0); // Basse limite (H, S, V)
-		cv::Scalar red_upper1(20, 255, 255); // Haute limite (H, S, V)
+		cv::Scalar red_upper1(40, 255, 255); // Haute limite (H, S, V)
 		ImageProcessing::ColorFiltering(images[3], red_lower1, red_upper1, cv::Scalar(255, 0, 0));
-		// Plage pour le jaune
-		cv::Scalar yellow_lower(20, 0, 0); // Basse limite (H, S, V)
-		cv::Scalar yellow_upper(40, 255, 255); // Haute limite (H, S, V)
-		ImageProcessing::ColorFiltering(images[4], yellow_lower, yellow_upper, cv::Scalar(255, 0, 0));
 
-		// Plage pour le marron (ajustez en fonction de la teinte spécifique)
-		cv::Scalar brown_lower(10, 0, 0); // Basse limite (H, S, V)
-		cv::Scalar brown_upper(30, 255, 255); // Haute limite (H, S, V)
-		ImageProcessing::ColorFiltering(images[5], brown_lower, brown_upper, cv::Scalar(255, 0, 0));
+
+		//ImageProcessing::EqualizeHistogramSaturation(images[5]);
+		//ImageProcessing::EqualizeHistogramValue(images[5]);
+
 		for (int i = 0; i < 6; i++) {
-			ImageProcessing::CropImageWithPoints(images[i], points);
+			//ImageProcessing::CropImageWithPoints(images[i], points);
 		}
-		//ImageProcessing::EqualizeHistogramColor(images[1]);
-		//ImageProcessing::EqualizeHistogramSaturation(images[2]);
-		//ImageProcessing::EqualizeHistogramValue(images[3]);
-		//ImageProcessing::ConvertToGrayScale(images[4]);
-		//ImageProcessing::EqualizeHistogram(images[5]);
-
-
 
 		// Save the processed images with their respective labels
 		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };

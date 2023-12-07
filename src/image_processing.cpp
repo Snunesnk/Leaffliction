@@ -197,7 +197,7 @@ void ImageProcessing::ExtractHue(cv::Mat& image, double lower, double upper) {
 	for (int i = 0; i < hsvImage.rows; i++) {
 		for (int j = 0; j < hsvImage.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
+			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
 				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
 				double hue = pixel[0];
 				if (hue >= lower && hue <= upper) {
@@ -216,7 +216,7 @@ void ImageProcessing::ExtractSaturation(cv::Mat& image, double threshold) {
 	for (int i = 0; i < hsvImage.rows; i++) {
 		for (int j = 0; j < hsvImage.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
+			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
 				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
 				if (hsvpixel[1] <= threshold) {
 					pixel[0] = 0;
@@ -234,7 +234,7 @@ void ImageProcessing::ExtractValue(cv::Mat& image, double threshold) {
 	for (int i = 0; i < hsvImage.rows; i++) {
 		for (int j = 0; j < hsvImage.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
+			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
 				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
 				if (hsvpixel[2] >= threshold) {
 					pixel[0] = 0;
@@ -251,7 +251,7 @@ void ImageProcessing::ExtractRedChannel(cv::Mat& image) {
 	for (int i = 0; i < image.rows; i++) {
 		for (int j = 0; j < image.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
+			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
 				pixel[0] = 0;
 				pixel[1] = 0;
 			}
@@ -264,7 +264,7 @@ void ImageProcessing::ExtractGreenChannel(cv::Mat& image) {
 	for (int i = 0; i < image.rows; i++) {
 		for (int j = 0; j < image.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
+			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
 				pixel[0] = 0;
 				pixel[2] = 0;
 			}
@@ -277,7 +277,7 @@ void ImageProcessing::ExtractBlueChannel(cv::Mat& image) {
 	for (int i = 0; i < image.rows; i++) {
 		for (int j = 0; j < image.cols; j++) {
 			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
+			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
 				pixel[1] = 0;
 				pixel[2] = 0;
 			}
@@ -468,9 +468,28 @@ std::vector<cv::Point> ImageProcessing::ExtractShape(cv::Mat& image) {
 	cv::Mat clone = image.clone();
 	ImageProcessing::EqualizeHistogramValue(clone);
 	ImageProcessing::EqualizeHistogramSaturation(clone);
-	ImageProcessing::ColorFiltering(clone, cv::Scalar(25, 50, 50), cv::Scalar(100, 255, 255));
-	//cv::medianBlur(clone, clone, 11);
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(25, 0, 50), cv::Scalar(100, 255, 255));
 	std::vector<cv::Point> points = getConvexHullPoints(clone);
+
+	clone = image.clone();
+	//ImageProcessing::EqualizeHistogramValue(clone);
+	//ImageProcessing::EqualizeHistogramSaturation(clone);
+	ImageProcessing::CropImageWithPoints(clone, points);
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(10, 0, 40), cv::Scalar(100, 255, 255));
+	cv::stackBlur(clone, clone, { 15, 15 });
+
+
+	cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
+	std::vector<std::vector<cv::Point>> contours;
+	int erosionSize = 15;
+	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * erosionSize + 1, 2 * erosionSize + 1));
+	cv::erode(clone, clone, element, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
+	cv::medianBlur(clone, clone, 11);
+	cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	points = std::vector<cv::Point>();
+	for (size_t i = 0; i < contours.size(); ++i) {
+		points.insert(points.end(), contours[i].begin(), contours[i].end());
+	}
 
 	//// Étape 2 : Affinage de la forme
 	//clone = image.clone();

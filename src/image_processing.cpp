@@ -413,11 +413,11 @@ void ImageProcessing::CropImageWithPoints(cv::Mat& image, const std::vector<cv::
 		return;
 	}
 
-	// Créez une image blanche de la même taille que l'image d'origine
-	cv::Mat whiteBackground(image.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+	// Créez une image blanche de la même taille et du même type que l'image d'origine
+	cv::Mat whiteBackground(image.size(), image.type(), cv::Scalar(255, 255, 255));
 
 	// Copiez la région à l'intérieur des points de l'image d'origine dans l'image de fond blanc
-	cv::Mat regionOfInterest(image.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+	cv::Mat regionOfInterest(image.size(), image.type(), cv::Scalar(255, 255, 255));
 	cv::Mat mask = cv::Mat::zeros(image.size(), CV_8UC1);
 	std::vector<std::vector<cv::Point>> contourVector = { points };
 	cv::drawContours(mask, contourVector, 0, cv::Scalar(255), cv::FILLED);
@@ -463,46 +463,48 @@ double ImageProcessing::calculateAspectRatioOfObjects(cv::Mat image) {
 }
 
 std::vector<cv::Point> ImageProcessing::ExtractShape(cv::Mat& image) {
+
 	// Étape 1 : Trouver les points du contour convexe
 	cv::Mat clone = image.clone();
 	ImageProcessing::EqualizeHistogramValue(clone);
 	ImageProcessing::EqualizeHistogramSaturation(clone);
-	ImageProcessing::ColorFiltering(clone, cv::Scalar(20, 50, 50), cv::Scalar(80, 255, 255));
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(25, 50, 50), cv::Scalar(100, 255, 255));
+	//cv::medianBlur(clone, clone, 11);
 	std::vector<cv::Point> points = getConvexHullPoints(clone);
 
-	// Étape 2 : Affinage de la forme
-	clone = image.clone();
-	ImageProcessing::EqualizeHistogramValue(clone);
-	ImageProcessing::EqualizeHistogramSaturation(clone);
-	ImageProcessing::CropImageWithPoints(clone, points);
-	ImageProcessing::ColorFiltering(clone, cv::Scalar(5, 105, 15), cv::Scalar(80, 255, 255));
-	cv::medianBlur(clone, clone, 31);
+	//// Étape 2 : Affinage de la forme
+	//clone = image.clone();
+	////ImageProcessing::EqualizeHistogramValue(clone);
+	////ImageProcessing::EqualizeHistogramSaturation(clone);
+	//ImageProcessing::CropImageWithPoints(clone, points);
+	//ImageProcessing::ColorFiltering(clone, cv::Scalar(0, 30, 30), cv::Scalar(100, 255, 255));
+	//cv::medianBlur(clone, clone, 31);
 
-	// Étape 3 : Trouver les points du contour
-	cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
-	std::vector<std::vector<cv::Point>> contours;
-	cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	points = std::vector<cv::Point>();
-	for (size_t i = 0; i < contours.size(); ++i) {
-		points.insert(points.end(), contours[i].begin(), contours[i].end());
-	}
+	//// Étape 3 : Trouver les points du contour
+	//cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
+	//std::vector<std::vector<cv::Point>> contours;
+	//cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	//points = std::vector<cv::Point>();
+	//for (size_t i = 0; i < contours.size(); ++i) {
+	//	points.insert(points.end(), contours[i].begin(), contours[i].end());
+	//}
 
-	// Étape 4 : Affinage de la forme
-	clone = image.clone();
-	ImageProcessing::CropImageWithPoints(clone, points);
-	ImageProcessing::EqualizeHistogramValue(clone);
-	ImageProcessing::EqualizeHistogramSaturation(clone);
-	ImageProcessing::ColorFiltering(clone, cv::Scalar(0, 15, 5), cv::Scalar(180, 255, 255));
-	cv::medianBlur(clone, clone, 21);
+	//// Étape 4 : Affinage de la forme
+	//clone = image.clone();
+	//ImageProcessing::CropImageWithPoints(clone, points);
+	//ImageProcessing::EqualizeHistogramValue(clone);
+	//ImageProcessing::EqualizeHistogramSaturation(clone);
+	//ImageProcessing::ColorFiltering(clone, cv::Scalar(0, 15, 5), cv::Scalar(180, 255, 255));
+	//cv::medianBlur(clone, clone, 21);
 
-	// Étape 5 : Trouver les points du contour
-	cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
-	contours = std::vector<std::vector<cv::Point>>();
-	cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	points = std::vector<cv::Point>();
-	for (size_t i = 0; i < contours.size(); ++i) {
-		points.insert(points.end(), contours[i].begin(), contours[i].end());
-	}
+	//// Étape 5 : Trouver les points du contour
+	//cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
+	//contours = std::vector<std::vector<cv::Point>>();
+	//cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	//points = std::vector<cv::Point>();
+	//for (size_t i = 0; i < contours.size(); ++i) {
+	//	points.insert(points.end(), contours[i].begin(), contours[i].end());
+	//}
 
 	// Étape 6 : Rogner l'image d'origine en fonction des points du contour final et appliquer une binarisation
 	ImageProcessing::CropImageWithPoints(image, points);

@@ -24,17 +24,17 @@ void extensionScatterPlotMatrix(const std::vector<DataInfo>& dataInfo, const siz
 			}
 		}
 
-		// Define house indices and colors
+		// Define type indices and colors
 
-		std::vector<std::string> houseColors = { "green", "blue", "scarlet", "yellow", "cyan", "magenta", "black", "gray" };
+		std::vector<std::string> typeColors = { "green", "blue", "scarlet", "yellow", "cyan", "magenta", "black", "gray" };
 
-		// Loop over houses to create data arrays
-		for (size_t h = 0; h < ModelUtils::targets.size(); ++h) {
-			std::string house = ModelUtils::targets[h];
+		// Loop over types to create data arrays
+		for (size_t h = 0; h < ModelUtils::types.size(); ++h) {
+			std::string type = ModelUtils::types[h];
 			pythonFile << "features" << h << " = np.array([";
 			for (size_t k = 0; k < dataInfo.size(); ++k) {
-				// Filter data for the specific house
-				if (house != dataInfo[k].labels[0]) {
+				// Filter data for the specific type
+				if (type != dataInfo[k].labels[0]) {
 					continue;
 				}
 				// Write feature values to the array
@@ -79,7 +79,7 @@ void extensionScatterPlotMatrix(const std::vector<DataInfo>& dataInfo, const siz
 			pythonFile << "axs[0, " << feature2 << "].text(0.5, 1.0, 'F " << (feature2 + 1) << "', transform=axs[0, " << feature2 << "].transAxes, va='bottom', ha='center')\n";
 		}
 
-		// Plot scatter plots for each house
+		// Plot scatter plots for each type
 		for (size_t h = 0; h < 4; ++h) {
 			for (size_t feature1 = 0; feature1 < featuresCount; ++feature1) {
 				for (size_t feature2 = 0; feature2 < featuresCount; ++feature2) {
@@ -209,22 +209,22 @@ double ModelCalculate::LogisticRegressionHypothesis(const std::vector<double>& w
 	return sigmoid;
 }
 
-double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& targets,
+double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& types,
 	const std::vector<std::vector<double>>& weights) {
 	const size_t dataSize = inputs.size();
-	const size_t houseCount = weights.size();
+	const size_t typeCount = weights.size();
 	double correctPredictions = 0;
 	for (size_t i = 0; i < dataSize; ++i) {
 		double maxProbability = -1.0;
 		size_t predictedHouse = 0;
-		for (size_t house = 0; house < houseCount; ++house) {
-			double probability = ModelCalculate::LogisticRegressionHypothesis(weights[house], inputs[i]);
+		for (size_t type = 0; type < typeCount; ++type) {
+			double probability = ModelCalculate::LogisticRegressionHypothesis(weights[type], inputs[i]);
 			if (probability > maxProbability) {
 				maxProbability = probability;
-				predictedHouse = house;
+				predictedHouse = type;
 			}
 		}
-		if (targets[i][predictedHouse] == 1.0) {
+		if (types[i][predictedHouse] == 1.0) {
 			correctPredictions++;
 		}
 	}
@@ -233,46 +233,46 @@ double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, 
 
 
 double ModelCalculate::LossFunction(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& weights,
-	const std::vector<std::vector<double>>& target, const size_t house) {
+	const std::vector<std::vector<double>>& target, const size_t type) {
 	const size_t size = inputs.size();
 	double loss = 0;
 	for (size_t i = 0; i < size; ++i) {
-		double proba = ModelCalculate::LogisticRegressionHypothesis(weights[house], inputs[i]);
-		loss += target[i][house] * std::log(proba + 1e-15) +
-			(1.0 - target[i][house]) * std::log(1.0 - proba + 1e-15);
+		double proba = ModelCalculate::LogisticRegressionHypothesis(weights[type], inputs[i]);
+		loss += target[i][type] * std::log(proba + 1e-15) +
+			(1.0 - target[i][type]) * std::log(1.0 - proba + 1e-15);
 	}
 	return -(1.0 / size) * loss;
 }
 
 double ModelCalculate::LossFunctionPartialDerivative(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
-	const std::vector<std::vector<double>>& target, const size_t house, const size_t j) {
+	const std::vector<std::vector<double>>& target, const size_t type, const size_t j) {
 	const size_t size = inputs.size();
 	double derivative = 0;
 	for (size_t i = 0; i < size; i++) {
-		double proba = ModelCalculate::LogisticRegressionHypothesis(weights[house], inputs[i]);
-		derivative += (proba - target[i][house]) * inputs[i][j];
+		double proba = ModelCalculate::LogisticRegressionHypothesis(weights[type], inputs[i]);
+		derivative += (proba - target[i][type]) * inputs[i][j];
 	}
 	return (1.0 / size) * derivative;
 }
 
 void ModelCalculate::GradientDescent(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
-	const std::vector<std::vector<double>>& target, const size_t house) {
+	const std::vector<std::vector<double>>& target, const size_t type) {
 	const double learningRate = 0.1;
 	const size_t size = weights[0].size();
 	std::vector<std::vector<double>> tmp_weights = weights;
-	tmp_weights[house][0] = weights[house][0];
+	tmp_weights[type][0] = weights[type][0];
 	for (size_t j = 0; j < size; j++) {
-		double derivative = ModelCalculate::LossFunctionPartialDerivative(inputs, weights, target, house, j);
+		double derivative = ModelCalculate::LossFunctionPartialDerivative(inputs, weights, target, type, j);
 
-		tmp_weights[house][j] -= learningRate * derivative;
+		tmp_weights[type][j] -= learningRate * derivative;
 	}
 	// Mise à jour des poids après avoir calculé toutes les dérivées partielles
-	weights[house] = tmp_weights[house];
+	weights[type] = tmp_weights[type];
 }
 
 void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& inputs,
-	const std::vector<std::vector<double>>& targets, const size_t epochs) {
-	const size_t housesCount = weights.size();
+	const std::vector<std::vector<double>>& types, const size_t epochs) {
+	const size_t typesCount = weights.size();
 	std::cout << std::left << std::setw(std::to_string(epochs).length() + 8) << "Epochs"
 		<< std::setw(10) << "Loss 1"
 		<< std::setw(10) << "Loss 2"
@@ -281,16 +281,16 @@ void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>
 		<< std::setw(10) << "Accuracy" << std::endl;
 	// Entraînement du modèle
 	for (size_t epoch = 0; epoch < epochs; ++epoch) {
-		for (size_t house = 0; house < housesCount; house++) {
-			ModelCalculate::GradientDescent(inputs, weights, targets, house);
+		for (size_t type = 0; type < typesCount; type++) {
+			ModelCalculate::GradientDescent(inputs, weights, types, type);
 		}
 		// Calculer la perte moyenne pour chaque maison après chaque époque (facultatif)
 		std::cout << "Epoch " << std::left << std::setw(std::to_string(epochs).length() + 2) << epoch + 1;
-		for (size_t house = 0; house < housesCount; house++) {
-			double loss = ModelCalculate::LossFunction(inputs, weights, targets, house);
+		for (size_t type = 0; type < typesCount; type++) {
+			double loss = ModelCalculate::LossFunction(inputs, weights, types, type);
 			std::cout << std::setw(10) << std::setprecision(6) << loss;
 		}
-		double accuracy = ModelCalculate::Accuracy(inputs, targets, weights);
+		double accuracy = ModelCalculate::Accuracy(inputs, types, weights);
 		std::cout << std::setw(5) << std::fixed << std::setprecision(2) << accuracy << "%";
 		std::cout << std::endl;
 	}
@@ -318,7 +318,7 @@ void ModelCalculate::HandleMissingValues(std::vector<DataInfo>& datas) {
 // Function to set up data for training
 void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const std::vector<size_t>& selectedFeatures,
 	std::vector<std::vector<double>>& weights, std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels) {
-	const size_t targetCount = ModelUtils::targets.size();
+	const size_t targetCount = ModelUtils::types.size();
 	// Initialize weights randomly
 	std::mt19937 gen(42);
 	std::uniform_real_distribution<double> distribution(-1.0, 1.0);
@@ -336,7 +336,7 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 		trainingInputs.push_back(selection);
 		std::vector<double> result(targetCount, 0.0);
 		for (size_t j = 0; j < targetCount; ++j) {
-			if (ModelUtils::targets[j] == datas[i].labels[0]) {
+			if (ModelUtils::types[j] == datas[i].labels[0]) {
 				result[j] = 1.0;
 				break;
 			}
@@ -347,20 +347,20 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 
 void ModelCalculate::CreateModel(std::vector<DataInfo>& datas) {
 	try {
-		extensionScatterPlotMatrix(datas, 8);
+		//extensionScatterPlotMatrix(datas, 8);
 		// Handle missing values
 		//ModelCalculate::HandleMissingValues(datas);
 		// Normalize training data
 		std::vector<double> featureMeans, featureStdDevs;
 		ModelUtils::NormalizeData(datas, featureMeans, featureStdDevs);
 		// Set up data for training
-		std::vector<size_t> selectedFeatures = { 1, 2, 3, 4, 5, 6 };
+		std::vector<size_t> selectedFeatures = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
-		std::vector<std::vector<double>> weights(ModelUtils::targets.size(), std::vector<double>(selectedFeatures.size(), 0.0));
-		std::vector<std::vector<double>> inputs, targets;
-		ModelCalculate::SetupTrainingData(datas, selectedFeatures, weights, inputs, targets);
+		std::vector<std::vector<double>> weights(ModelUtils::types.size(), std::vector<double>(selectedFeatures.size(), 0.0));
+		std::vector<std::vector<double>> inputs, types;
+		ModelCalculate::SetupTrainingData(datas, selectedFeatures, weights, inputs, types);
 		// Train the model
-		ModelCalculate::LogisticRegressionTrainning(weights, inputs, targets, 2000);
+		ModelCalculate::LogisticRegressionTrainning(weights, inputs, types, 2000);
 		// Save weights and normalization parameters
 		ModelUtils::SaveWeightsAndNormalizationParameters(weights, featureMeans, featureStdDevs, "models.save");
 	}

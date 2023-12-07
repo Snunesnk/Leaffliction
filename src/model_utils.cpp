@@ -5,7 +5,7 @@
 #include <limits>
 #include <stdexcept>
 
-const std::vector<std::string> ModelUtils::targets = {
+const std::vector<std::string> ModelUtils::types = {
 	"Apple_Black_rot",
 	"Apple_healthy",
 	"Apple_rust",
@@ -256,8 +256,8 @@ void ModelUtils::SaveWeightsAndNormalizationParameters(const std::vector<std::ve
 	outFile << "\n\n";
 
 	// Enregistrer les poids
-	for (const auto& houseWeights : weights) {
-		for (double weight : houseWeights) {
+	for (const auto& typeWeights : weights) {
+		for (double weight : typeWeights) {
 			outFile << weight << " ";
 		}
 		outFile << "\n";
@@ -306,11 +306,11 @@ void ModelUtils::LoadWeightsAndNormalizationParameters(std::vector<std::vector<d
 	while (std::getline(inFile, line)) {
 		std::istringstream weightStream(line);
 		double weight;
-		std::vector<double> houseWeights;
+		std::vector<double> typeWeights;
 		while (weightStream >> weight) {
-			houseWeights.push_back(weight);
+			typeWeights.push_back(weight);
 		}
-		weights.push_back(houseWeights);
+		weights.push_back(typeWeights);
 	}
 
 	// Fermer le fichier

@@ -16,7 +16,7 @@ struct DataInfo {
 
 class ModelUtils {
 public:
-	static const std::vector<std::string> targets;
+	static const std::vector<std::string> types;
 
 	static bool isNumber(const std::string& str);
 	static std::pair<std::vector<std::string>, size_t> LoadDataFile(const std::string& filename, std::vector<DataInfo>& datas);

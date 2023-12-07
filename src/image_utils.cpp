@@ -16,7 +16,7 @@ void ImageUtils::CreateImageMosaic(const std::vector<cv::Mat> images, const std:
 		const int textWidth = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, labelFontSize, labelThickness, 0).width;
 		const int xPos = (labeledImage.cols - textWidth) / 2;
 		cv::putText(labeledImage, label, cv::Point(xPos, 20), cv::FONT_HERSHEY_SIMPLEX, labelFontSize, cv::Scalar(255, 255, 255), labelThickness);
-		
+
 		cols.push_back(labeledImage);
 	}
 	cv::Mat mosaic;
@@ -32,8 +32,27 @@ void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::M
 
 	for (int i = 0; i < images.size(); i++) {
 		const std::string outputFilename = saveDir + imgName + "_" + types[i] + ".JPG";
-		cv::imwrite(outputFilename, images[i]);
+		cv::imwrite(outputFilename, images[i], { cv::IMWRITE_JPEG_QUALITY, 100 });
 		std::cout << "\r\033[K" << "Saved : " << outputFilename;
+	}
+}
+
+bool comparerNumeriquement(const std::string& a, const std::string& b) {
+	// Trouvez la position de ')' dans les chaînes a et b
+	size_t posA = a.find(')');
+	size_t posB = b.find(')');
+
+	std::string numeroA = a.substr(a.find('(') + 1, posA - a.find('(') - 1);
+	std::string numeroB = b.substr(b.find('(') + 1, posB - b.find('(') - 1);
+
+	try {
+		// Convertissez les sous-chaînes en entiers
+		int intA = std::stoi(numeroA);
+		int intB = std::stoi(numeroB);
+		return intA < intB;
+	}
+	catch (...) {
+		throw std::runtime_error("Error filename");
 	}
 }
 
@@ -45,14 +64,18 @@ std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& dir
 		if (entry.is_regular_file() && entry.path().extension() == ".JPG") {
 			std::string fileName = entry.path().filename().generic_string();
 			images.push_back(fileName);
-			imageCount++;
-			if (--generation == 0) {
-				break;
-			}
+
 		}
 	}
+
+	std::sort(images.begin(), images.end(), comparerNumeriquement);
+
+	if (generation >= 0 && generation < images.size()) {
+		images.erase(images.begin() + generation + 1, images.end());
+	}
+
 	std::cout << directoryPath << std::endl;
-	std::cout << imageCount << " files" << std::endl;
+	std::cout << images.size() << " files" << std::endl;
 	return images;
 }
 
@@ -61,7 +84,15 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
 		throw std::runtime_error("Missing source or destination directory.");
 	}
-
+	for (const auto& entry : std::filesystem::directory_iterator(destination)) {
+		if (std::filesystem::is_regular_file(entry)) {
+			std::string nomFichier = entry.path().filename().string();
+			if (nomFichier.find('T') != std::string::npos) {
+				std::filesystem::remove(entry.path());
+				std::cout << "Deleted file : " << entry.path() << "\r\033[K";
+			}
+		}
+	}
 	std::vector<std::string> names = ImageUtils::GetImagesInDirectory(source, generation);
 	for (auto i = 0; i < names.size(); i++) {
 		// Load an image from the specified file path
@@ -70,7 +101,6 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 			throw std::runtime_error("Unable to load the image.");
 		}
 		std::vector<cv::Mat> images;
-
 		// Create a vector to store multiple copies of the loaded image
 		for (int i = 0; i < 6; i++) {
 			images.push_back(originalImage.clone());
@@ -78,14 +108,34 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 
 		// Apply various image processing operations to different copies of the image
 		std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[0]);
-		for (int i = 1; i < 6; i++) {
+		images[1] = originalImage.clone();
+		// Plage pour le vert
+		cv::Scalar green_lower(40, 0, 0); // Basse limite (H, S, V)
+		cv::Scalar green_upper(100, 255, 255); // Haute limite (H, S, V)
+		ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
+		// Plage pour le rouge (rouge pur)
+		cv::Scalar red_lower1(0, 0, 0); // Basse limite (H, S, V)
+		cv::Scalar red_upper1(20, 255, 255); // Haute limite (H, S, V)
+		ImageProcessing::ColorFiltering(images[3], red_lower1, red_upper1, cv::Scalar(255, 0, 0));
+		// Plage pour le jaune
+		cv::Scalar yellow_lower(20, 0, 0); // Basse limite (H, S, V)
+		cv::Scalar yellow_upper(40, 255, 255); // Haute limite (H, S, V)
+		ImageProcessing::ColorFiltering(images[4], yellow_lower, yellow_upper, cv::Scalar(255, 0, 0));
+
+		// Plage pour le marron (ajustez en fonction de la teinte spécifique)
+		cv::Scalar brown_lower(10, 0, 0); // Basse limite (H, S, V)
+		cv::Scalar brown_upper(30, 255, 255); // Haute limite (H, S, V)
+		ImageProcessing::ColorFiltering(images[5], brown_lower, brown_upper, cv::Scalar(255, 0, 0));
+		for (int i = 0; i < 6; i++) {
 			ImageProcessing::CropImageWithPoints(images[i], points);
 		}
-		ImageProcessing::EqualizeHistogramColor(images[1]);
-		ImageProcessing::EqualizeHistogramSaturation(images[2]);
-		ImageProcessing::EqualizeHistogramValue(images[3]);
-		ImageProcessing::ConvertToGrayScale(images[4]);
-		ImageProcessing::EqualizeHistogram(images[5]);
+		//ImageProcessing::EqualizeHistogramColor(images[1]);
+		//ImageProcessing::EqualizeHistogramSaturation(images[2]);
+		//ImageProcessing::EqualizeHistogramValue(images[3]);
+		//ImageProcessing::ConvertToGrayScale(images[4]);
+		//ImageProcessing::EqualizeHistogram(images[5]);
+
+
 
 		// Save the processed images with their respective labels
 		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };
@@ -95,7 +145,7 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		int progress = (i + 1) * 100 / names.size();
 		int numComplete = (progress * 50) / 100;
 		int numRemaining = 50 - numComplete;
-		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;		
+		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
 		std::cout << "\033[A";
 
 	}
@@ -133,7 +183,7 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 		ImageUtils::SaveImages(destination + names[i], images, augmentations);
 
 		// Progression
-		int progress = (i + 1) * 100 / names.size();
+		int progress = (i * 6 + 1) * 100 / names.size();
 		int numComplete = (progress * 50) / 100;
 		int numRemaining = 50 - numComplete;
 		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;

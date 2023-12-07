@@ -16,6 +16,32 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 		}
 		return { ImageProcessing::calculateAspectRatioOfObjects(image) };
 	}
+	else if (transformation != 2) 
+	{
+		//cv::Mat hsvImage;
+		//cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+		double mean = 0;
+		double count = 0;
+		for (int i = 0; i < image.rows; i++) {
+			for (int j = 0; j < image.cols; j++) {
+				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
+				if (pixel[0] >= 250 && pixel[1] <= 5 && pixel[2] <= 5) {
+					//cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
+					count++;// += hsvpixel[0];
+					//count++;
+				}
+				else if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
+					//cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
+					mean++;// += hsvpixel[0];
+					count++;
+				}			
+			}
+		}
+		if (count)
+			return { mean / count };
+		else
+			return { 0 };
+	}
 	else if (transformation == 2) //HEC
 	{
 		std::vector<double> means(3);
@@ -23,7 +49,7 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 		for (int i = 0; i < image.rows; i++) {
 			for (int j = 0; j < image.cols; j++) {
 				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-				if (pixel[0] + pixel[1] + pixel[2] - 255 * 3) {
+				if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
 					means[0] += pixel[0];
 					means[1] += pixel[1];
 					means[2] += pixel[2];
@@ -31,7 +57,10 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 				}
 			}
 		}
-		return { means[0] / count, means[1] / count, means[2] / count };
+		if (count)
+			return { means[0] / count, means[1] / count, means[2] / count };
+		else
+			return { 0, 0, 0 };
 	}
 	else if (transformation == 3) { //HES
 		cv::Mat hsvImage;
@@ -106,7 +135,7 @@ void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int
 
 		const std::string target = entry.path().filename().generic_string();
 		// Next if not expected directory
-		if (std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), target) == ModelUtils::targets.end()) {
+		if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), target) == ModelUtils::types.end()) {
 			continue;
 		}
 		const std::string entryPath = entry.path().generic_string() + "/";
@@ -147,13 +176,22 @@ void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int
 					break;
 				}
 			}
+			// Line display
+			std::cout << "\r\033[K" << filePath;
 			// When line completed, push it and start new line
 			if (feature == features.size()) {
 				feature = -1;
 				datas.push_back(elems);
 				elems = std::vector<std::string>(headersIndex.back() + 1, "");
+				// Progression
+				int progress = (i + 1) * 100 / files.size();
+				int numComplete = (progress * 50) / 100;
+				int numRemaining = 50 - numComplete;
+				std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+				std::cout << "\033[A";
 			}
 		}
+		std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 	}
 
 	for (auto i = 0; i < datas.size(); i++) {
@@ -166,26 +204,26 @@ void createDatasAndCSV(std::string source, std::vector<DataInfo>& datasInfo, int
 		}
 	}
 	// for tests
-	std::string filename = "data.csv";
-	std::ofstream outputfile(filename);
-	if (outputfile.is_open()) {
-		for (size_t i = 0; i < datas.size(); i++) {
-			for (size_t j = 0; j < datas[i].size(); j++) {
-				outputfile << datas[i][j];
-				if (j < datas[i].size() - 1) {
-					outputfile << ",";
-				}
-				else {
-					outputfile << std::endl;
-				}
-			}
-		}
-		outputfile.close();
-		std::cout << "datas saved to " << filename << std::endl;
-	}
-	else {
-		throw std::runtime_error("unable to open " + filename);
-	}
+	//std::string filename = "data.csv";
+	//std::ofstream outputfile(filename);
+	//if (outputfile.is_open()) {
+	//	for (size_t i = 0; i < datas.size(); i++) {
+	//		for (size_t j = 0; j < datas[i].size(); j++) {
+	//			outputfile << datas[i][j];
+	//			if (j < datas[i].size() - 1) {
+	//				outputfile << ",";
+	//			}
+	//			else {
+	//				outputfile << std::endl;
+	//			}
+	//		}
+	//	}
+	//	outputfile.close();
+	//	std::cout << "Datas saved to " << filename << std::endl;
+	//}
+	//else {
+	//	throw std::runtime_error("Unable to open " + filename);
+	//}
 }
 
 int main(int argc, char* argv[]) {
@@ -240,7 +278,7 @@ int main(int argc, char* argv[]) {
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 20;
+		generation = 42;
 #endif
 
 		std::vector<DataInfo> datasInfo;

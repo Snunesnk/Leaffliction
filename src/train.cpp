@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 300;
+		generation = 500;
 #endif
 
 		std::vector<DataInfo> datasInfo;
@@ -294,7 +294,7 @@ int main(int argc, char* argv[]) {
 					for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
 						if (std::filesystem::is_regular_file(entry)) {
 							std::string filename = entry.path().filename().string();
-							if (filename.find('_') != std::string::npos) {
+							if (filename.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
 								std::filesystem::remove(entry.path());
 								std::cout << "Delete file : " << entry.path() << "\r\033[K";
 							}

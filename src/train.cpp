@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 500;
+		generation = 50;
 #endif
 
 		std::vector<DataInfo> datasInfo;
@@ -290,6 +290,13 @@ int main(int argc, char* argv[]) {
 			for (const auto& entry : std::filesystem::directory_iterator(source)) {
 				std::filesystem::path entryPath = entry.path();
 				if (std::filesystem::is_directory(entryPath)) {
+
+					const std::string target = entry.path().filename().generic_string();				
+					// Next if not expected directory
+					if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), target) == ModelUtils::types.end()) {
+						continue;
+					}
+
 					std::string directoryPath = entryPath.generic_string() + "/";
 					for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
 						if (std::filesystem::is_regular_file(entry)) {

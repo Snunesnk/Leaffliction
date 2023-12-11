@@ -1,9 +1,8 @@
 #include "model_utils.h"
 #include "model_calculate.h"
 #include <iostream>
-#include <iomanip>
-#include <limits>
-#include <stdexcept>
+#include <fstream>
+#include <sstream>
 
 const std::vector<std::string> ModelUtils::types = {
 	"Apple_Black_rot",
@@ -16,198 +15,74 @@ const std::vector<std::string> ModelUtils::types = {
 	"Grape_spot"
 };
 
-const std::vector<std::string> labels = { 
-	"Shape",
-	"RedChannel",
-	"GreenChannel",
-	"BlueChannel",
-	"Saturation",
-	"Value"
-};
-
-
-// Function to check if a string represents a number, allowing for negative numbers and decimal points.
-bool ModelUtils::isNumber(const std::string& str) {
-	bool hasDigit = false;
-	bool hasDot = false;
-
-	for (size_t i = 0; i < str.size(); ++i) {
-		char c = str[i];
-
-		if (i == 0 && c == '-') {
-			continue;
+void ModelUtils::SaveDataFile(const std::string& filename, const std::vector<std::vector<std::string>>& data)
+{
+	std::ofstream outputfile(filename);
+	if (outputfile.is_open()) {
+		for (size_t i = 0; i < data.size(); i++) {
+			for (size_t j = 0; j < data[i].size(); j++) {
+				outputfile << data[i][j];
+				if (j < data[i].size() - 1) {
+					outputfile << ",";
+				}
+				else {
+					outputfile << std::endl;
+				}
+			}
 		}
-
-		if (std::isdigit(c)) {
-			hasDigit = true;
-		}
-		else if (c == '.' && i > 0 && i < str.size() - 1 && std::isdigit(str[i - 1]) && std::isdigit(str[i + 1])) {
-			hasDot = true;
-		}
-		else {
-			return false;
-		}
+		outputfile.close();
+		std::cout << "Data saved to " << filename << std::endl;
 	}
-
-	return hasDigit || hasDot;
-}
-
-// Function to load headers from the first line of a file.
-void loadHeader(std::ifstream& file, std::vector<std::string>& headers) {
-	std::string header;
-	std::getline(file, header);
-
-	std::istringstream headerStream(header);
-	std::string headerElement;
-
-	// Parsing comma-separated header elements and storing them in the vector.
-	while (std::getline(headerStream, headerElement, ',')) {
-		headers.push_back(headerElement);
+	else {
+		throw std::runtime_error("Unable to open " + filename);
 	}
 }
 
-// Function to determine the starting index of features in each data line.
-void determineFeaturesStartIndex(std::ifstream& file, size_t headersCount, size_t& featuresStartIndex) {
-	std::vector<std::string> tempElementsLine(headersCount, "");
+void ModelUtils::LoadDataFile(std::vector<DataInfo>& datainfos, const std::string& filename)
+{
+	std::ifstream inputfile(filename);
 
-	size_t linesCount = 0;
-	std::string line;
-
-	// Iterating through lines to find the first non-empty numeric element in each column.
-	while (std::getline(file, line)) {
-		if (linesCount++ > 20000) {
-			throw std::runtime_error("Error: Wrong file size");
-		}
-
-		std::istringstream lineStream(line);
-
-		size_t currentIndex = 0;
-		std::string element;
-
-		while (std::getline(lineStream, element, ',')) {
-			if (tempElementsLine[currentIndex].empty() && ModelUtils::isNumber(element)) {
-				tempElementsLine[currentIndex] = element;
-			}
-
-			if (currentIndex++ > 100) {
-				throw std::runtime_error("Error: Wrong header");
-			}
-		}
+	if (!inputfile.is_open()) {
+		throw std::runtime_error("Unable to open " + filename);
 	}
 
-	// Setting the featuresStartIndex based on the first non-empty numeric element in each column.
-	featuresStartIndex = 1;
-	for (size_t i = 1; i < headersCount; ++i) {
-		if (tempElementsLine[i].empty()) {
-			featuresStartIndex++;
+	try {
+		std::string line;
+		while (std::getline(inputfile, line)) {
+			std::istringstream linestream(line);
+			std::string element;
+			std::vector<std::string> row;
+			while (std::getline(linestream, element, ',')) {
+				row.push_back(element);
+			}
+			std::cout << row.size() << ",";
+			DataInfo datainfo;
+			datainfo.index = std::stoi(row[0]);
+			datainfo.labels.push_back(row[1]);
+			datainfo.labels.push_back(row[2]);
+			for (size_t i = 3; i < row.size(); i++) {
+				datainfo.features.push_back(std::stod(row[i]));
+			}
+			datainfos.push_back(datainfo);
 		}
 	}
+	catch (...) {
+		throw std::runtime_error("Wrong data from " + filename);
+	}
+
+	inputfile.close();
+	std::cout << "Data loaded from " << filename << std::endl;
 }
 
 
-
-// Function to load data lines from the file and construct DataInfo objects.
-void loadDataLines(std::ifstream& file, std::vector<DataInfo>& datas, size_t headersCount, size_t featuresStartIndex) {
-	std::string line;
-	std::getline(file, line);
-
-	// Iterating through lines to parse and validate index, labels, and features.
-	while (std::getline(file, line)) {
-		DataInfo data;
-
-		std::istringstream lineStream(line);
-		std::string element;
-
-		std::getline(lineStream, element, ',');
-		if (!ModelUtils::isNumber(element)) {
-			throw std::runtime_error("Error: Wrong index in file : " + element + " at index " + std::to_string(data.index));
-		}
-		data.index = static_cast<size_t>(std::stoi(element));
-
-		// Parsing labels for the data.
-		for (size_t i = 1; i < featuresStartIndex; ++i) {
-			std::getline(lineStream, element, ',');
-			if (element.empty() || !ModelUtils::isNumber(element)) {
-				data.labels.push_back(element);
-			}
-			else {
-				throw std::runtime_error("Error: Wrong label in file : " + element + " at index " + std::to_string(data.index));
-			}
-		}
-
-		// Parsing features for the data.
-		for (size_t i = featuresStartIndex; i < headersCount; ++i) {
-			std::getline(lineStream, element, ',');
-			if (element.empty()) {
-				data.features.push_back(std::numeric_limits<double>::quiet_NaN());
-			}
-			else if (ModelUtils::isNumber(element)) {
-				data.features.push_back(std::stod(element));
-			}
-			else {
-				throw std::runtime_error("Error: Wrong feature in file : " + element + " at index " + std::to_string(data.index));
-			}
-		}
-
-		datas.push_back(data);
-	}
-}
-
-// Function to load data from a file, including headers, features start index, and data information.
-std::pair<std::vector<std::string>, size_t> ModelUtils::LoadDataFile(const std::string& filename, std::vector<DataInfo>& datas) {
-	std::vector<std::string> headers;
-	size_t featuresStartIndex;
-
-	std::ifstream file(filename);
-	if (!file.is_open()) {
-		throw std::runtime_error("Error: Opening file.");
-	}
-
-	// Loading headers from the file.
-	loadHeader(file, headers);
-
-	// Determining the starting index of features in each data line.
-	determineFeaturesStartIndex(file, headers.size(), featuresStartIndex);
-
-	// Resetting the file position to the beginning.
-	file.clear();
-	file.seekg(0);
-
-	// Loading data lines and constructing DataInfo objects.
-	loadDataLines(file, datas, headers.size(), featuresStartIndex);
-
-	file.close();
-
-	return { headers, featuresStartIndex };
-}
-
-// Function to print feature headers with a specified maximum width.
-void ModelUtils::printFeatureHeader(const size_t max) {
-	const int fieldWidth = 14;
-
-	std::cout << std::setw(fieldWidth) << std::left << "";
-
-	// Printing feature headers with the specified field width.
-	for (size_t i = 1; i <= max; i++) {
-		std::cout << std::setw(fieldWidth) << std::right << "Feature " + std::to_string(i);
-	}
-
-	std::cout << std::endl;
-}
-
-void ModelUtils::NormalizeData(std::vector<DataInfo>& data, std::vector<double>& featureMeans, std::vector<double>& featureStdDevs) {
-	// Calculer la moyenne et l'écart type des caractéristiques des données
-	size_t numFeatures = data[0].features.size();
-
+void ModelUtils::StandardNormalizationData(std::vector<DataInfo>& data, std::vector<double>& featureMeans, std::vector<double>& featureStdDevs)
+{
 	if (featureMeans.size() + featureStdDevs.size() == 0) {
-		for (size_t i = 0; i < numFeatures; ++i) {
-			// Extraction des valeurs de la caractéristique i
+		for (size_t i = 0; i < data[0].features.size(); ++i) {
 			std::vector<double> featureValues;
 			for (const DataInfo& entry : data) {
 				featureValues.push_back(entry.features[i]);
 			}
-
-			// Calcul de la moyenne et de l'écart type en utilisant vos fonctions
 			double mean = ModelCalculate::Mean(featureValues);
 			double stdDev = ModelCalculate::StandardDeviation(featureValues);
 
@@ -215,25 +90,32 @@ void ModelUtils::NormalizeData(std::vector<DataInfo>& data, std::vector<double>&
 			featureStdDevs.push_back(stdDev);
 		}
 	}
-
-	// Normalise les données
+	int warnings = 0;
+	std::cout << std::endl;
 	for (DataInfo& entry : data) {
-		size_t numFeatures = entry.features.size();
-		for (size_t i = 0; i < numFeatures; ++i) {
+		for (size_t i = 0; i < entry.features.size(); ++i) {
 			if (featureStdDevs[i] != 0.0) {
 				entry.features[i] = (entry.features[i] - featureMeans[i]) / featureStdDevs[i];
 			}
 			else {
-				std::cerr << "Warning: Feature " << i << " has a zero standard deviation. Normalization ignored.\n";
+				entry.features[i] = 0;
 			}
 		}
 	}
+	for (auto featureStdDev : featureStdDevs) {
+		if (featureStdDev == 0) {
+			warnings++;
+		}
+	}
+	std::cerr << "Warning: " << warnings << " features have a zero standard deviation." << std::endl;
+	std::cout << std::endl;
 }
 
-void ModelUtils::SaveWeightsAndNormalizationParameters(const std::vector<std::vector<double>>& weights,
+void ModelUtils::SaveModelInformations(const std::vector<std::vector<double>>& weights,
 	const std::vector<double>& featureMeans,
 	const std::vector<double>& featureStdDevs,
-	const std::string& filename) {
+	const std::string& filename)
+{
 	// Ouvrir le fichier en mode écriture
 	std::ofstream outFile(filename);
 
@@ -267,10 +149,11 @@ void ModelUtils::SaveWeightsAndNormalizationParameters(const std::vector<std::ve
 	outFile.close();
 }
 
-void ModelUtils::LoadWeightsAndNormalizationParameters(std::vector<std::vector<double>>& weights,
+void ModelUtils::LoadModelInformations(std::vector<std::vector<double>>& weights,
 	std::vector<double>& featureMeans,
 	std::vector<double>& featureStdDevs,
-	const std::string& filename) {
+	const std::string& filename)
+{
 	// Ouvrir le fichier en mode lecture
 	std::ifstream inFile(filename);
 

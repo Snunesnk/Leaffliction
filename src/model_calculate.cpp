@@ -1,7 +1,8 @@
-#include <iostream>
-#include <random>
 #include "model_utils.h"
 #include "model_calculate.h"
+#include <iostream>
+#include <random>
+#include <iomanip>
 
 
 // Function definition for generating scatter plot matrix
@@ -116,7 +117,6 @@ void extensionScatterPlotMatrix(const std::vector<DataInfo>& dataInfo, const siz
 	}
 }
 
-
 double ModelCalculate::Mean(const std::vector<double>& data) {
 	double sum = 0.0;
 	double count = 0;
@@ -142,73 +142,6 @@ double ModelCalculate::StandardDeviation(const std::vector<double>& data) {
 	return std::sqrt(variance / count);
 }
 
-double ModelCalculate::Min(const std::vector<double>& data) {
-	double minValue = data[0];
-	for (const auto& value : data) {
-		if (!std::isnan(value) && value < minValue) {
-			minValue = value;
-		}
-	}
-	return minValue;
-}
-
-double ModelCalculate::Max(const std::vector<double>& data) {
-	double maxValue = data[0];
-	for (const auto& value : data) {
-		if (!std::isnan(value) && value > maxValue) {
-			maxValue = value;
-		}
-	}
-	return maxValue;
-}
-
-double ModelCalculate::Quartile(const std::vector<double>& data, int n) {
-	std::vector<double> sortedData;
-	for (const auto& value : data) {
-		if (!std::isnan(value)) {
-			sortedData.push_back(value);
-		}
-	}
-	std::sort(sortedData.begin(), sortedData.end());
-	double index = (static_cast<double>(n) * (static_cast<double>(sortedData.size()) - 1.0)) / 100.0;
-	double ptc = index - static_cast<double>(static_cast<size_t>(index));
-	return (sortedData[static_cast<size_t>(index)] * ptc + sortedData[static_cast<size_t>(index) + 1] * (1.0 - ptc)) / 2.0;
-}
-
-double ModelCalculate::Covariance(const std::vector<double>& data1, const std::vector<double>& data2) {
-	double meanData1 = ModelCalculate::Mean(data1);
-	double meanData2 = ModelCalculate::Mean(data2);
-	// Calcul de la covariance
-	double covariance = 0.0;
-	double count = 0;
-	for (size_t i = 0; i < data1.size(); ++i) {
-		if (!std::isnan(data1[i]) && !std::isnan(data2[i])) {
-			covariance += (data1[i] - meanData1) * (data2[i] - meanData2);
-			count++;
-		}
-	}
-	return covariance / count;
-}
-
-double ModelCalculate::PearsonCorrelation(const std::vector<double>& data1, const std::vector<double>& data2) {
-	double covariance = ModelCalculate::Covariance(data1, data2);
-	double stdDevData1 = ModelCalculate::StandardDeviation(data1);
-	double stdDevData2 = ModelCalculate::StandardDeviation(data2);
-	// Calcul du coefficient de corrélation de Pearson
-	double pearsonCorrelation = covariance / (stdDevData1 * stdDevData2);
-	return pearsonCorrelation;
-}
-
-double ModelCalculate::LogisticRegressionHypothesis(const std::vector<double>& weights, const std::vector<double>& inputs) {
-	const size_t weightCount = weights.size();
-	double weightedSum = 0;
-	for (size_t i = 0; i < weightCount; ++i) {
-		weightedSum += weights[i] * inputs[i];
-	}
-	double sigmoid = 1.0 / (1.0 + exp(-weightedSum));
-	return sigmoid;
-}
-
 double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& types,
 	const std::vector<std::vector<double>>& weights) {
 	const size_t dataSize = inputs.size();
@@ -231,6 +164,16 @@ double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, 
 	return (correctPredictions / static_cast<double>(dataSize)) * 100.0;
 }
 
+double ModelCalculate::LogisticRegressionHypothesis(const std::vector<double>& weights, const std::vector<double>& inputs)
+{
+	const size_t weightCount = weights.size();
+	double weightedSum = 0;
+	for (size_t i = 0; i < weightCount; ++i) {
+		weightedSum += weights[i] * inputs[i];
+	}
+	double sigmoid = 1.0 / (1.0 + exp(-weightedSum));
+	return sigmoid;
+}
 
 double ModelCalculate::LossFunction(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& weights,
 	const std::vector<std::vector<double>>& target, const size_t type) {
@@ -270,7 +213,7 @@ void ModelCalculate::GradientDescent(const std::vector<std::vector<double>>& inp
 	weights[type] = tmp_weights[type];
 }
 
-void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& inputs,
+void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& valids,
 	const std::vector<std::vector<double>>& types, const size_t epochs) {
 
 	const size_t typesCount = weights.size();
@@ -293,28 +236,9 @@ void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>
 			double loss = ModelCalculate::LossFunction(inputs, weights, types, type);
 			std::cout << std::setw(10) << std::setprecision(6) << loss;
 		}
-		double accuracy = ModelCalculate::Accuracy(inputs, types, weights);
+		double accuracy = ModelCalculate::Accuracy(valids, types, weights);
 		std::cout << std::setw(5) << std::fixed << std::setprecision(2) << accuracy << "%";
 		std::cout << std::endl;
-	}
-}
-
-// Function to handle missing values by replacing NaN with feature means
-void ModelCalculate::HandleMissingValues(std::vector<DataInfo>& datas) {
-	size_t dataCount = datas.size();
-	size_t featureCount = datas[0].features.size();
-	std::vector<std::vector<double>> featureValues(featureCount, std::vector<double>(datas.size()));
-	for (size_t i = 0; i < featureCount; ++i) {
-		for (size_t j = 0; j < dataCount; ++j) {
-			featureValues[i][j] = datas[j].features[i];
-		}
-	}
-	for (auto& data : datas) {
-		for (size_t j = 0; j < featureCount; ++j) {
-			if (std::isnan(data.features[j])) {
-				data.features[j] = ModelCalculate::Mean(featureValues[j]);
-			}
-		}
 	}
 }
 
@@ -350,25 +274,45 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 
 void ModelCalculate::CreateModel(std::vector<DataInfo>& datas) {
 	try {
-		//extensionScatterPlotMatrix(datas, 8);
-		// Handle missing values
-		//ModelCalculate::HandleMissingValues(datas);
-		// Normalize training data
 		std::vector<double> featureMeans, featureStdDevs;
-		ModelUtils::NormalizeData(datas, featureMeans, featureStdDevs);
-		// Set up data for training
+		ModelUtils::StandardNormalizationData(datas, featureMeans, featureStdDevs);
+
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::shuffle(datas.begin(), datas.end(), gen);
+
 		std::vector<size_t> selectedFeatures;
 		auto counter = 0;
 		for (auto f : datas[0].features) {
 			selectedFeatures.push_back(++counter);
 		}
+		selectedFeatures.pop_back();
+		selectedFeatures.pop_back();
+
+		//extensionScatterPlotMatrix(datas, selectedFeatures.size());
+
 		std::vector<std::vector<double>> weights(ModelUtils::types.size(), std::vector<double>(selectedFeatures.size(), 0.0));
-		std::vector<std::vector<double>> inputs, types;
+		std::vector<std::vector<double>> inputs, types, valids;
 		ModelCalculate::SetupTrainingData(datas, selectedFeatures, weights, inputs, types);
+
+		std::cout << "inputs " << inputs.size() << std::endl;
+		auto classSize = inputs.size() / 8;
+		auto forValidation = 13;
+		for (int c = 1; c <= 8; c++) {
+			auto lastIndexOfClass = classSize * c;
+			valids.insert(valids.end(), inputs.begin() + lastIndexOfClass - forValidation, inputs.begin() + lastIndexOfClass);
+		}
+		for (int c = 1; c <= 8; c++) {
+			auto lastIndexOfClass = classSize * c - forValidation * (c - 1);
+			inputs.erase(inputs.begin() + lastIndexOfClass - forValidation, inputs.begin() + lastIndexOfClass);
+		}
+
+		std::cout << "inputs " << inputs.size() << std::endl;
+		std::cout << "valids " << valids.size() << std::endl;
 		// Train the model
-		ModelCalculate::LogisticRegressionTrainning(weights, inputs, types, 5000);
+		ModelCalculate::LogisticRegressionTrainning(weights, inputs, valids, types, 1000);
 		// Save weights and normalization parameters
-		ModelUtils::SaveWeightsAndNormalizationParameters(weights, featureMeans, featureStdDevs, "models.save");
+		ModelUtils::SaveModelInformations(weights, featureMeans, featureStdDevs, "models.save");
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;

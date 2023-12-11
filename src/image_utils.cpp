@@ -87,8 +87,10 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		// Load an image from the specified file path
 		cv::Mat originalImage = cv::imread(source + names[i], cv::IMREAD_COLOR);
 		if (originalImage.empty()) {
-			throw std::runtime_error("Unable to load the image.");
+			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
+		ImageProcessing::EqualizeHistogramValue(originalImage);
+
 		std::vector<cv::Mat> images;
 		// Create a vector to store multiple copies of the loaded image
 		for (int i = 0; i < 6; i++) {
@@ -97,23 +99,23 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 
 		// Apply various image processing operations to different copies of the image
 		std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[0]);
-		//images[1] = originalImage.clone();
 		// Plage pour le vert
 		cv::Scalar green_lower(40, 0, 0); // Basse limite (H, S, V)
 		cv::Scalar green_upper(100, 255, 255); // Haute limite (H, S, V)
 		ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
+		ImageProcessing::CropImageWithPoints(images[2], points);
 		// Plage pour le rouge (rouge pur)
 		cv::Scalar red_lower1(0, 0, 0); // Basse limite (H, S, V)
 		cv::Scalar red_upper1(40, 255, 255); // Haute limite (H, S, V)
 		ImageProcessing::ColorFiltering(images[3], red_lower1, red_upper1, cv::Scalar(255, 0, 0));
+		ImageProcessing::CropImageWithPoints(images[3], points);
 
-
-		//ImageProcessing::EqualizeHistogramSaturation(images[5]);
+		//ImageProcessing::EqualizeHistogramSaturation(images[4]);
 		//ImageProcessing::EqualizeHistogramValue(images[5]);
 
-		for (int i = 0; i < 6; i++) {
-			//ImageProcessing::CropImageWithPoints(images[i], points);
-		}
+		//for (int i = 0; i < 6; i++) {
+		//	ImageProcessing::CropImageWithPoints(images[i], points);
+		//}
 
 		// Save the processed images with their respective labels
 		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };
@@ -141,7 +143,7 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 		// Load an image from the specified file path
 		cv::Mat image = cv::imread(source + names[i], cv::IMREAD_COLOR);
 		if (image.empty()) {
-			throw std::runtime_error("Unable to load the image.");
+			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
 		// Create a vector to store multiple copies of the loaded image
 		std::vector<cv::Mat> images;

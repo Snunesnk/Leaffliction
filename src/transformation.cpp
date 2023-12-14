@@ -79,35 +79,41 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 
 
 
-void displayImageTranformations(const std::string& source) {
+void display(const std::string& source) {
 	// Load an image from the specified file path
 	cv::Mat originalImage = cv::imread(source, cv::IMREAD_COLOR);
 	if (originalImage.empty()) {
-		throw std::runtime_error("Unable to load the image.");
+		throw std::runtime_error("Unable to load the image. " + source);
 	}
-
+	//ImageProcessing::EqualizeHistogramSaturation(originalImage);
 	std::vector<cv::Mat> images;
-	images.push_back(originalImage.clone());
-
-
-	// Create a vector to store multiple copies of the processed image
+	// Create a vector to store multiple copies of the loaded image
 	for (int i = 0; i < 6; i++) {
 		images.push_back(originalImage.clone());
 	}
 
 	// Apply various image processing operations to different copies of the image
 	std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[1]);
-	for (int i = 1; i < 7; i++) {
-		ImageProcessing::CropImageWithPoints(images[i], points);
+	// Plage pour le vert
+	cv::Scalar green_lower(40, 0, 0); // Basse limite (H, S, V)
+	cv::Scalar green_upper(100, 255, 255); // Haute limite (H, S, V)
+	ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
+	ImageProcessing::CropImageWithPoints(images[2], points);
+	// Plage pour le rouge (rouge pur)
+	cv::Scalar red_lower1(0, 0, 0); // Basse limite (H, S, V)
+	cv::Scalar red_upper1(40, 255, 255); // Haute limite (H, S, V)
+	ImageProcessing::ColorFiltering(images[3], red_lower1, red_upper1, cv::Scalar(255, 0, 0));
+	ImageProcessing::CropImageWithPoints(images[3], points);
+
+	//ImageProcessing::EqualizeHistogramSaturation(images[4]);
+	//ImageProcessing::EqualizeHistogramValue(images[5]);
+
+	for (int i = 0; i < 6; i++) {
+		//ImageProcessing::CropImageWithPoints(images[i], points);
 	}
-	ImageProcessing::EqualizeHistogramColor(images[2]);
-	ImageProcessing::EqualizeHistogramSaturation(images[3]);
-	ImageProcessing::EqualizeHistogramValue(images[4]);
-	ImageProcessing::ConvertToGrayScale(images[5]);
-	ImageProcessing::EqualizeHistogram(images[6]);
 
 	// Save the processed images with their respective labels
-	std::vector<std::string> labels = { "Original", "T1-Shape", "T2-HEColor", "T3-HESaturation", "T4-HEValue", "T5-GrayScale", "T6-HEGrayScale" };
+	std::vector<std::string> labels = { "Original", "T1", "T2", "T3", "T4", "T5", "T6" };
 	ImageUtils::CreateImageMosaic(images, "Transformation", labels);
 
 	cv::waitKey(1);
@@ -176,20 +182,20 @@ int main(int argc, char* argv[]) {
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		source = "images/Grape_Esca/";
+		source = "images/Grape_Black_rot";
 		destination = "images/test";
 #endif
-		if (source.back() != '/') {
-			source += "/";
-		}
 		if (destination.back() != '/') {
 			destination += "/";
 		}
 		// Check if source is a .JPG file
-		if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
-			displayImageTranformations(source);
+		if (source.length() > 4 && source.substr(source.length() - 4) == ".JPG") {
+			display(source);
 		}
 		else {
+			if (source.back() != '/') {
+				source += "/";
+			}
 			ImageUtils::SaveTFromToDirectory(source, destination, generation);
 		}
 	}

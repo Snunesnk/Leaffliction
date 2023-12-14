@@ -468,20 +468,20 @@ std::vector<cv::Point> ImageProcessing::ExtractShape(cv::Mat& image) {
 	cv::Mat clone = image.clone();
 	ImageProcessing::EqualizeHistogramValue(clone);
 	ImageProcessing::EqualizeHistogramSaturation(clone);
-	ImageProcessing::ColorFiltering(clone, cv::Scalar(25, 0, 50), cv::Scalar(100, 255, 255));
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(25, 50, 50), cv::Scalar(100, 255, 255));
 	std::vector<cv::Point> points = getConvexHullPoints(clone);
 
 	clone = image.clone();
 	//ImageProcessing::EqualizeHistogramValue(clone);
 	//ImageProcessing::EqualizeHistogramSaturation(clone);
 	ImageProcessing::CropImageWithPoints(clone, points);
-	ImageProcessing::ColorFiltering(clone, cv::Scalar(10, 0, 40), cv::Scalar(100, 255, 255));
+	ImageProcessing::ColorFiltering(clone, cv::Scalar(15, 50, 50), cv::Scalar(100, 255, 255));
 	cv::stackBlur(clone, clone, { 15, 15 });
 
 
 	cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
 	std::vector<std::vector<cv::Point>> contours;
-	int erosionSize = 15;
+	int erosionSize = 8;
 	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * erosionSize + 1, 2 * erosionSize + 1));
 	cv::erode(clone, clone, element, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
 	cv::medianBlur(clone, clone, 11);

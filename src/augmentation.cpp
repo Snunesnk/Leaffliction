@@ -3,7 +3,7 @@
 #include "image_processing.h"
 #include "image_utils.h"
 
-void displayMosaic(const std::string& source, std::string& destination) {
+void display(const std::string& source, std::string& destination) {
 	// Load an image from the specified file path
 	cv::Mat image = cv::imread(source, cv::IMREAD_COLOR);
 	if (image.empty()) {
@@ -24,7 +24,7 @@ void displayMosaic(const std::string& source, std::string& destination) {
 
 	// Create a mosaic image from the processed images
 	std::vector<std::string> labels = { "Original", "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" };
-	ImageUtils::CreateImageMosaic(images, "Transformation", labels);
+	ImageUtils::ShowMosaic(images, "Transformation", labels);
 	cv::waitKey(0);
 }
 
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
 		}
 		// Check if source is a .JPG file
 		if (source.length() >= 4 && source.substr(source.length() - 4) == ".JPG") {
-			displayMosaic(source, destination);
+			display(source, destination);
 		}
 		else {
 			ImageUtils::SaveAFromToDirectory(source, destination, generation);

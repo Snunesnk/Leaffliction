@@ -7,39 +7,6 @@
 #include "model_utils.h"
 #include "model_calculate.h"
 
-double Mean(const std::vector<double>& data)
-{
-	double sum = 0.0;
-	double count = 0.0;
-	for (const auto& value : data) {
-		if (!std::isnan(value) && !std::isinf(value)) {
-			sum += value;
-			count++;
-		}
-	}
-	if (count == 0) {
-		return 0;
-	}
-	return sum / count;
-}
-
-double StandardDeviation(const std::vector<double>& data)
-{
-	double m = Mean(data);
-	double variance = 0.0;
-	double count = 0;
-	for (const auto& value : data) {
-		if (!std::isnan(value) && !std::isinf(value)) {
-			variance += std::pow(value - m, 2);
-			count++;
-		}
-	}
-	if (count == 0) {
-		return 0;
-	}
-	return std::sqrt(variance / count);
-}
-
 std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformation)
 {
 	if (transformation == 1) {
@@ -69,56 +36,56 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 			}
 		}
 		std::vector<double> RGBMeans(3);
-		RGBMeans[0] = Mean(RGBValues[0]);
-		RGBMeans[1] = Mean(RGBValues[1]);
-		RGBMeans[2] = Mean(RGBValues[2]);
+		RGBMeans[0] = ImageUtils::Mean(RGBValues[0]);
+		RGBMeans[1] = ImageUtils::Mean(RGBValues[1]);
+		RGBMeans[2] = ImageUtils::Mean(RGBValues[2]);
 
 		std::vector<double> RGBStandardDeviation(3);
-		RGBStandardDeviation[0] = Mean(RGBValues[0]);
-		RGBStandardDeviation[1] = Mean(RGBValues[1]);
-		RGBStandardDeviation[2] = Mean(RGBValues[2]);
+		RGBStandardDeviation[0] = ImageUtils::Mean(RGBValues[0]);
+		RGBStandardDeviation[1] = ImageUtils::Mean(RGBValues[1]);
+		RGBStandardDeviation[2] = ImageUtils::Mean(RGBValues[2]);
 
 		double RGMeansDiff = RGBMeans[1] - RGBMeans[2];
 
 		std::vector<double> HSVMeans(3);
-		HSVMeans[0] = Mean(HSVValues[0]);
-		HSVMeans[1] = Mean(HSVValues[1]);
-		HSVMeans[2] = Mean(HSVValues[2]);
+		HSVMeans[0] = ImageUtils::Mean(HSVValues[0]);
+		HSVMeans[1] = ImageUtils::Mean(HSVValues[1]);
+		HSVMeans[2] = ImageUtils::Mean(HSVValues[2]);
 
 		std::vector<double> numerics = {
-			/*RGBMeans[0], RGBMeans[1] ,RGBMeans[2],*/ RGMeansDiff,
-			/*RGBStandardDeviation[0], RGBStandardDeviation[1], RGBStandardDeviation[2],*/
-			/*HSVMeans[0],*/ /*HSVMeans[1],*/ HSVMeans[2],
+			RGBMeans[0], RGBMeans[1] ,RGBMeans[2], /*RGMeansDiff,
+			RGBStandardDeviation[0], RGBStandardDeviation[1], RGBStandardDeviation[2],
+			HSVMeans[0], HSVMeans[1], HSVMeans[2],*/
 		};
 
 
-		//// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de fréquence de Fourier 
-		//cv::Mat bgrChannels[3];
-		//cv::split(image, bgrChannels);
+		// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de fréquence de Fourier 
+		cv::Mat bgrChannels[3];
+		cv::split(image, bgrChannels);
 
-		//// Calculer la 2D DFT pour chaque canal
-		//for (int channel = 0; channel < 3; channel++) {
-		//	cv::Mat grayChannel;
-		//	bgrChannels[channel].convertTo(grayChannel, CV_32F); // Conversion en float
-		//	cv::Mat complexChannel;
-		//	cv::dft(grayChannel, complexChannel, cv::DFT_COMPLEX_OUTPUT);
+		// Calculer la 2D DFT pour chaque canal
+		for (int channel = 0; channel < 3; channel++) {
+			cv::Mat grayChannel;
+			bgrChannels[channel].convertTo(grayChannel, CV_32F); // Conversion en float
+			cv::Mat complexChannel;
+			cv::dft(grayChannel, complexChannel, cv::DFT_COMPLEX_OUTPUT);
 
-		//	// Séparer les parties réelles et imaginaires
-		//	std::vector<cv::Mat> channels(2);
-		//	cv::split(complexChannel, channels);
-		//	cv::Mat realPart = channels[0];
+			// Séparer les parties réelles et imaginaires
+			std::vector<cv::Mat> channels(2);
+			cv::split(complexChannel, channels);
+			cv::Mat realPart = channels[0];
 
-		//	// Calculer la moyenne des valeurs de la partie réelle pour chaque bande de fréquence
-		//	int numBands = complexChannel.cols;
-		//	std::vector<double> DFTMeans(numBands, 0.0);
+			// Calculer la moyenne des valeurs de la partie réelle pour chaque bande de fréquence
+			int numBands = complexChannel.cols;
+			std::vector<double> DFTMeans(numBands, 0.0);
 
-		//	for (int i = 0; i < numBands; i += 25) {
-		//		cv::Mat band = realPart.col(i);
-		//		cv::Scalar mean = cv::mean(band);
-		//		DFTMeans[i] = mean[0];
-		//		numerics.push_back(DFTMeans[i]);
-		//	}
-		//}
+			for (int i = 0; i < numBands; i += 25) {
+				cv::Mat band = realPart.col(i);
+				cv::Scalar mean = cv::mean(band);
+				DFTMeans[i] = mean[0];
+				//numerics.push_back(DFTMeans[i]);
+			}
+		}
 
 		return numerics;
 	}
@@ -219,7 +186,7 @@ void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int genera
 				datas.push_back(lineElements);
 				lineElements.clear();
 				// Progression
-				int progress = (i + 1) * 100 / files.size();
+				int progress = (i + 1) * 100 / static_cast<int>(files.size());
 				int numComplete = (progress * 50) / 100;
 				int numRemaining = 50 - numComplete;
 				std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
@@ -257,13 +224,13 @@ void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int genera
 		datasInfo.back().index = std::stoi(datas[i][0]);
 		datasInfo.back().labels.push_back(datas[i][1]);
 		datasInfo.back().labels.push_back(datas[i][2]);
-		
+
 		for (auto j = 0; j < datas[i].size() - 3; j++) {
 			datasInfo.back().features.push_back(std::stod(datas[i][j + 3]));
 		}
 	}
 	std::cout << std::endl;
-	ModelUtils::SaveDataFile("data.csv", datas);
+	//ModelUtils::SaveDataFile("data.csv", datas);
 }
 
 int main(int argc, char* argv[])
@@ -319,10 +286,10 @@ int main(int argc, char* argv[])
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 200;
-		
+		generation = 100;
+
 #endif
-		auto step = 3;
+		auto step = 0;
 		std::vector<DataInfo> datasInfo;
 
 		bool checker = false;
@@ -362,8 +329,7 @@ int main(int argc, char* argv[])
 					}
 				}
 				std::cout << "Images deleted : " << imageCout << std::endl;
-			}
-			if (step <= 1) {
+
 				// Augmentations limited by -gen
 				std::cout << "Doing augmentations if needed..." << std::endl;
 				int augmentationCout = 0;
@@ -387,13 +353,12 @@ int main(int argc, char* argv[])
 
 						if (tmp_generation > 0) {
 							augmentationCout += tmp_generation;
-							ImageUtils::SaveAFromToDirectory(directoryPath, directoryPath, tmp_generation);
+							ImageUtils::SaveAFromToDirectory(directoryPath, directoryPath, tmp_generation / 6);
 						}
 					}
 				}
 				std::cout << "Augmentations generated : " << augmentationCout << std::endl;
-			}
-			if (step <= 2) {
+
 				// Transformations limited by -gen
 				std::cout << "Doing transformation..." << std::endl;
 				for (const auto& entry : std::filesystem::directory_iterator(source)) {
@@ -408,9 +373,9 @@ int main(int argc, char* argv[])
 						ImageUtils::SaveTFromToDirectory(directoryPath, directoryPath, generation);
 					}
 				}
-				std::cout << "Transformations generated : " << generation * 8 * 6 << std::endl;				
+				std::cout << "Transformations generated : " << generation * 8 * 6 << std::endl;
 			}
-			if (step <= 3) {
+			if (step <= 1) {
 				std::cout << "Doing data generation..." << std::endl;
 				CreateData(source, datasInfo, generation * 7);
 			}

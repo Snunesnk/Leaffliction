@@ -55,7 +55,6 @@ void ModelUtils::LoadDataFile(std::vector<DataInfo>& datainfos, const std::strin
 			while (std::getline(linestream, element, ',')) {
 				row.push_back(element);
 			}
-			std::cout << row.size() << ",";
 			DataInfo datainfo;
 			datainfo.index = std::stoi(row[0]);
 			datainfo.labels.push_back(row[1]);

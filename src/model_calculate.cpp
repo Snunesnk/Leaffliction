@@ -248,7 +248,7 @@ void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const
 	const size_t targetCount = ModelUtils::types.size();
 	// Initialize weights randomly
 	std::mt19937 gen(42);
-	std::uniform_real_distribution<double> distribution(-1.0, 1.0);
+	std::uniform_real_distribution<double> distribution(-0.0, 0.0);
 	for (size_t i = 0; i < targetCount; ++i) {
 		for (size_t j = 0; j < selectedFeatures.size(); ++j) {
 			weights[i][j] = distribution(gen);
@@ -278,7 +278,7 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& datas) {
 		ModelUtils::StandardNormalizationData(datas, featureMeans, featureStdDevs);
 
 		std::random_device rd;
-		std::mt19937 gen(rd());
+		std::mt19937 gen(42);
 		std::shuffle(datas.begin(), datas.end(), gen);
 
 		std::vector<size_t> selectedFeatures;

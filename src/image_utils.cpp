@@ -1,9 +1,10 @@
 #include "image_utils.h"
 #include "image_processing.h"
 
-void ImageUtils::CreateImageMosaic(const std::vector<cv::Mat> images, const std::string name, const std::vector<std::string>& labels) {
-	constexpr double labelFontSize = 0.75;
-	constexpr double labelThickness = 1;
+void ImageUtils::ShowMosaic(const std::vector<cv::Mat>& images, const std::string& name, const std::vector<std::string>& labels)
+{
+	const double labelFontSize = 0.75;
+	const double labelThickness = 1;
 
 	std::vector<cv::Mat> cols;
 	for (int j = 0; j < images.size(); j++) {
@@ -24,7 +25,8 @@ void ImageUtils::CreateImageMosaic(const std::vector<cv::Mat> images, const std:
 	cv::imshow(name, mosaic);
 }
 
-void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::Mat>& images, const std::vector<std::string>& types) {
+void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::Mat>& images, const std::vector<std::string>& types)
+{
 	const size_t lastSlashPos = filePath.find_last_of('/');
 	const size_t lastPointPos = filePath.find_last_of('.');
 	const std::string saveDir = filePath.substr(0, lastSlashPos + 1);
@@ -37,7 +39,8 @@ void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::M
 	}
 }
 
-std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& directoryPath, int generation) {
+std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& directoryPath, int generation)
+{
 	std::vector<std::string> images;
 	size_t imageCount = 0;
 
@@ -50,20 +53,20 @@ std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& dir
 	}
 
 	std::sort(images.begin(), images.end(), [](const std::string& a, const std::string& b) {
-			size_t posA = a.find(')');
-			size_t posB = b.find(')');
+		size_t posA = a.find(')');
+		size_t posB = b.find(')');
 
-			std::string numeroA = a.substr(a.find('(') + 1, posA - a.find('(') - 1);
-			std::string numeroB = b.substr(b.find('(') + 1, posB - b.find('(') - 1);
+		std::string numeroA = a.substr(a.find('(') + 1, posA - a.find('(') - 1);
+		std::string numeroB = b.substr(b.find('(') + 1, posB - b.find('(') - 1);
 
-			try {
-				int intA = std::stoi(numeroA);
-				int intB = std::stoi(numeroB);
-				return intA < intB;
-			}
-			catch (...) {
-				throw std::runtime_error("Error filename");
-			}
+		try {
+			int intA = std::stoi(numeroA);
+			int intB = std::stoi(numeroB);
+			return intA < intB;
+		}
+		catch (...) {
+			throw std::runtime_error("Error filename");
+		}
 		}
 	);
 
@@ -76,7 +79,40 @@ std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& dir
 	return images;
 }
 
-void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destination, int generation) {
+double ImageUtils::Mean(const std::vector<double>& data)
+{
+	double sum = 0.0;
+	double count = 0.0;
+	for (const auto& value : data) {
+		if (!std::isnan(value) && !std::isinf(value)) {
+			sum += value;
+			count++;
+		}
+	}
+	if (count == 0) {
+		return 0;
+	}
+	return sum / count;
+}
+
+double ImageUtils::StandardDeviation(const std::vector<double>& data)
+{
+	double m = Mean(data);
+	double variance = 0.0;
+	double count = 0;
+	for (const auto& value : data) {
+		if (!std::isnan(value) && !std::isinf(value)) {
+			variance += std::pow(value - m, 2);
+			count++;
+		}
+	}
+	if (count == 0) {
+		return 0;
+	}
+	return std::sqrt(variance / count);
+}
+void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destination, int generation)
+{
 	// Check if source and destination are provided
 	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
 		throw std::runtime_error("Missing source or destination directory.");
@@ -89,8 +125,7 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		if (originalImage.empty()) {
 			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
-		ImageProcessing::EqualizeHistogramValue(originalImage);
-
+		//ImageProcessing::EqualizeHistogramSaturation(originalImage);
 		std::vector<cv::Mat> images;
 		// Create a vector to store multiple copies of the loaded image
 		for (int i = 0; i < 6; i++) {
@@ -98,24 +133,205 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		}
 
 		// Apply various image processing operations to different copies of the image
-		std::vector<cv::Point> points = ImageProcessing::ExtractShape(images[0]);
+		std::vector<cv::Point> pts = ImageProcessing::ExtractShape(images[0]);
 		// Plage pour le vert
 		cv::Scalar green_lower(40, 0, 0); // Basse limite (H, S, V)
 		cv::Scalar green_upper(100, 255, 255); // Haute limite (H, S, V)
 		ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
-		ImageProcessing::CropImageWithPoints(images[2], points);
+		ImageProcessing::CropImageWithPoints(images[2], pts);
 		// Plage pour le rouge (rouge pur)
 		cv::Scalar red_lower1(0, 0, 0); // Basse limite (H, S, V)
 		cv::Scalar red_upper1(40, 255, 255); // Haute limite (H, S, V)
 		ImageProcessing::ColorFiltering(images[3], red_lower1, red_upper1, cv::Scalar(255, 0, 0));
-		ImageProcessing::CropImageWithPoints(images[3], points);
+		ImageProcessing::CropImageWithPoints(images[3], pts);
+		ImageProcessing::EqualizeHistogramSaturation(images[4]);
 
-		//ImageProcessing::EqualizeHistogramSaturation(images[4]);
+
 		//ImageProcessing::EqualizeHistogramValue(images[5]);
+		cv::Mat hsvImage;
+		cv::cvtColor(images[5], hsvImage, cv::COLOR_BGR2HSV_FULL);
+		for (int i = 0; i < images[5].rows; i++) {
+			for (int j = 0; j < images[5].cols; j++) {
+				//hsvImage.at<cv::Vec3b>(i, j)[0] = 128;
+				hsvImage.at<cv::Vec3b>(i, j)[2] = 128;
+			}
+		}
+		cv::cvtColor(hsvImage, images[5], cv::COLOR_HSV2BGR_FULL);
+		for (int i = 0; i < images[5].rows; i++) {
+			for (int j = 0; j < images[5].cols; j++) {
+				double min = images[5].at<cv::Vec3b>(i, j)[0];
+				if (images[5].at<cv::Vec3b>(i, j)[2] < min) {
+					min = images[5].at<cv::Vec3b>(i, j)[2];
+				}
+				images[5].at<cv::Vec3b>(i, j)[1] = (images[5].at<cv::Vec3b>(i, j)[1] < min ? 0 : images[5].at<cv::Vec3b>(i, j)[1] - min);
+				images[5].at<cv::Vec3b>(i, j)[0] = (images[5].at<cv::Vec3b>(i, j)[0] < min ? 0 : images[5].at<cv::Vec3b>(i, j)[0] - min);
+				images[5].at<cv::Vec3b>(i, j)[2] = (images[5].at<cv::Vec3b>(i, j)[2] < min ? 0 : images[5].at<cv::Vec3b>(i, j)[2] - min);
+			}
+		}
 
-		//for (int i = 0; i < 6; i++) {
-		//	ImageProcessing::CropImageWithPoints(images[i], points);
-		//}
+
+		ImageProcessing::Contrast(images[5], 2, 2);
+		cv::GaussianBlur(images[5], images[5], { 11,11 }, 0);
+
+		cv::cvtColor(images[5], hsvImage, cv::COLOR_BGR2HSV_FULL);
+		std::vector<cv::Point> points;
+
+		int tSize = 4;
+		int startX = 0; // La position de départ en x
+		int endX = images[5].cols - 1; // La position de fin en x
+		int startY = 0; // La position de départ en y
+		int endY = images[5].rows - 1; // La position de fin en y
+
+		// Parcours de gauche à droite
+		for (int i = startY; i <= endY; i++) {
+			double save = 0.0;
+			std::vector<double> stds;
+			for (int k = 0; k < tSize; k++) {
+				stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
+			}
+			save = Mean(stds);
+			for (int j = startX; j <= endX; j++) {
+				stds.clear();
+				for (int k = j; k < j + tSize && k <= endX; k++) {
+					stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
+				}
+				double result = Mean(stds);
+				if (abs(result - save) > 5) {
+
+					for (int k = j; k < j + tSize * 2 && k <= endX; k++) {
+						images[5].at<cv::Vec3b>(i, k)[0] = 0;
+						images[5].at<cv::Vec3b>(i, k)[1] = 0;
+						images[5].at<cv::Vec3b>(i, k)[2] = 0;
+
+					}
+					points.push_back({ j + tSize * 2, i });
+					break;
+				}
+				else {
+					images[5].at<cv::Vec3b>(i, j)[0] = 0;
+					images[5].at<cv::Vec3b>(i, j)[1] = 0;
+					images[5].at<cv::Vec3b>(i, j)[2] = 0;
+					save = (result + save) / 2;
+				}
+			}
+		}
+		// Parcours de droite à gauche
+		for (int i = startY; i <= endY; i++) {
+			double save = 0.0;
+			std::vector<double> stds;
+			for (int k = 0; k < tSize; k++) {
+				stds.push_back(hsvImage.at<cv::Vec3b>(i, endX - k)[2]);
+			}
+			save = Mean(stds);
+			for (int j = endX; j >= startX; j--) {
+				stds.clear();
+				for (int k = j - tSize + 1; k <= j && k >= startX; k++) {
+					stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
+				}
+				double result = Mean(stds);
+				if (abs(result - save) > 5) {
+
+					for (int k = j; k > j - tSize * 2 && k >= startX; k--) {
+						images[5].at<cv::Vec3b>(i, k)[0] = 0;
+						images[5].at<cv::Vec3b>(i, k)[1] = 0;
+						images[5].at<cv::Vec3b>(i, k)[2] = 0;
+					}
+					points.push_back({ j - tSize * 2, i });
+					break;
+				}
+				else {
+					images[5].at<cv::Vec3b>(i, j)[0] = 0;
+					images[5].at<cv::Vec3b>(i, j)[1] = 0;
+					images[5].at<cv::Vec3b>(i, j)[2] = 0;
+					save = (result + save) / 2;
+				}
+			}
+		}
+		// Parcours de haut en bas
+		for (int j = startX; j <= endX; j++) {
+			double save = 0.0;
+			std::vector<double> stds;
+			for (int k = 0; k < tSize; k++) {
+				stds.push_back(hsvImage.at<cv::Vec3b>(endY - k, j)[2]);
+			}
+			save = Mean(stds);
+			for (int i = endY; i >= startY; i--) {
+
+				stds.clear();
+				for (int k = i - tSize + 1; k <= i && k >= startY; k++) {
+					stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
+				}
+				double result = Mean(stds);
+				if (abs(result - save) > 5) {
+
+					for (int k = i; k > i - tSize * 2 && k >= startY; k--) {
+						images[5].at<cv::Vec3b>(k, j)[0] = 0;
+						images[5].at<cv::Vec3b>(k, j)[1] = 0;
+						images[5].at<cv::Vec3b>(k, j)[2] = 0;
+					}
+					points.push_back({ j  , i - tSize * 2 });
+					break;
+				}
+				else {
+					images[5].at<cv::Vec3b>(i, j)[0] = 0;
+					images[5].at<cv::Vec3b>(i, j)[1] = 0;
+					images[5].at<cv::Vec3b>(i, j)[2] = 0;
+					save = (result + save) / 2;
+				}
+			}
+		}
+		// Parcours de bas en haut
+		for (int j = startX; j <= endX; j++) {
+			double save = 0.0;
+			std::vector<double> stds;
+			for (int k = 0; k < tSize; k++) {
+				stds.push_back(hsvImage.at<cv::Vec3b>(startY + k, j)[2]);
+			}
+			save = Mean(stds);
+			for (int i = startY; i <= endY; i++) {
+				stds.clear();
+				for (int k = i; k < i + tSize && k <= endY; k++) {
+					stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
+				}
+				double result = Mean(stds);
+				if (abs(result - save) > 5) {
+
+					for (int k = i; k < i + tSize * 2 && k <= endY; k++) {
+						images[5].at<cv::Vec3b>(k, j)[0] = 0;
+						images[5].at<cv::Vec3b>(k, j)[1] = 0;
+						images[5].at<cv::Vec3b>(k, j)[2] = 0;
+					}
+					points.push_back({ j  , i + tSize * 2 });
+					break;
+				}
+				else {
+					images[5].at<cv::Vec3b>(i, j)[0] = 0;
+					images[5].at<cv::Vec3b>(i, j)[1] = 0;
+					images[5].at<cv::Vec3b>(i, j)[2] = 0;
+					save = (result + save) / 2;
+				}
+			}
+		}
+
+		cv::Mat grayscaleImage;
+		cv::cvtColor(images[5], grayscaleImage, cv::COLOR_BGR2GRAY); // Convertir en niveaux de gris
+
+		std::vector<std::vector<cv::Point>> contours;
+		cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+		//std::sort(points.begin(), points.end(), [](const cv::Point& a, const cv::Point& b) {
+		//	if (a.x != b.x) return a.x < b.x;
+		//	return a.y < b.y;
+		//	});
+		cv::Mat mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
+		//std::vector<std::vector<cv::Point>> contours;
+		//contours.push_back(points);
+		cv::fillPoly(mask, contours, cv::Scalar(255));
+		cv::Mat result;
+		originalImage.copyTo(result, mask);
+
+		images[5] = result.clone();
+
 
 		// Save the processed images with their respective labels
 		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };
@@ -132,7 +348,8 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 	std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 }
 
-void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destination, int generation) {
+void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destination, int generation)
+{
 	// Check if source and destination are provided
 	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
 		throw std::runtime_error("Missing source or destination directory.");
@@ -163,14 +380,11 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 		ImageUtils::SaveImages(destination + names[i], images, augmentations);
 
 		// Progression
-		int progress = (i * 6 + 1) * 100 / names.size();
+		int progress = (i + 1) * 100 / names.size();
 		int numComplete = (progress * 50) / 100;
 		int numRemaining = 50 - numComplete;
 		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
 		std::cout << "\033[A";
-		if ((generation -= 6) <= 0) {
-			break;
-		}
 	}
 	std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 }

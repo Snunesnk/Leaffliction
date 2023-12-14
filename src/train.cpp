@@ -58,7 +58,6 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 			HSVMeans[0], HSVMeans[1], HSVMeans[2],*/
 		};
 
-
 		// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de fréquence de Fourier 
 		cv::Mat bgrChannels[3];
 		cv::split(image, bgrChannels);
@@ -237,7 +236,7 @@ int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " [-gen <generation_max>]");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " source_dir [-gen <generation_max>]");
 		}
 		std::string source = argv[1];
 		int generation = 1640;

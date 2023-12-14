@@ -47,7 +47,7 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	// Create and open a text file for writing
 	std::ofstream pythonScript("script.py");
 	if (!pythonScript.is_open()) {
-		throw std::runtime_error("Erreur : Impossible de créer le fichier Python (script.py).");
+		throw std::runtime_error("Erreur : Impossible de crï¿½er le fichier Python (script.py).");
 	}
 	std::vector<std::string> channels = { "hue", "saturation", "value", "blue", "green", "red" };
 	std::vector<std::string> colors = { "purple", "cyan", "orange", "blue", "green", "red" };

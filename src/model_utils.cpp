@@ -23,7 +23,6 @@ void ModelUtils::SaveDataFile(const std::string& filename, const std::vector<std
 		for (size_t i = 0; i < data.size(); i++) {
 			for (size_t j = 0; j < data[i].size(); j++) {
 				outputfile << data[i][j];
-				std::cout << data[i][j] << std::endl;
 				if (j < data[i].size() - 1) {
 					outputfile << ",";
 				}

@@ -18,7 +18,6 @@ const std::vector<std::string> ModelUtils::types = {
 void ModelUtils::SaveDataFile(const std::string& filename, const std::vector<std::vector<std::string>>& data)
 {
 	std::ofstream outputfile(filename);
-	std::cout << "Saving data" << std::endl;
 	if (outputfile.is_open()) {
 		for (size_t i = 0; i < data.size(); i++) {
 			for (size_t j = 0; j < data[i].size(); j++) {
@@ -116,7 +115,7 @@ void ModelUtils::SaveModelInformations(const std::vector<std::vector<double>>& w
 	const std::vector<double>& featureStdDevs,
 	const std::string& filename)
 {
-	// Ouvrir le fichier en mode ï¿½criture
+	// Ouvrir le fichier en mode écriture
 	std::ofstream outFile(filename);
 
 	if (!outFile.is_open()) {
@@ -124,7 +123,7 @@ void ModelUtils::SaveModelInformations(const std::vector<std::vector<double>>& w
 		return;
 	}
 
-	// Enregistrer les caractï¿½ristiques (moyennes et ï¿½carts types)
+	// Enregistrer les caractéristiques (moyennes et écarts types)
 	outFile << "FeatureMeans:";
 	for (double mean : featureMeans) {
 		outFile << " " << mean;
@@ -163,7 +162,7 @@ void ModelUtils::LoadModelInformations(std::vector<std::vector<double>>& weights
 	}
 
 	std::string line;
-	// Lire les moyennes des caractï¿½ristiques
+	// Lire les moyennes des caractéristiques
 	std::getline(inFile, line);
 	std::istringstream meanStream(line);
 	std::string meanLabel;
@@ -173,7 +172,7 @@ void ModelUtils::LoadModelInformations(std::vector<std::vector<double>>& weights
 		featureMeans.push_back(meanValue);
 	}
 
-	// Lire les ï¿½carts types des caractï¿½ristiques
+	// Lire les écarts types des caractéristiques
 	std::getline(inFile, line);
 	std::istringstream stdDevStream(line);
 	std::string stdDevLabel;

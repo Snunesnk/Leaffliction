@@ -58,6 +58,7 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 			HSVMeans[0], HSVMeans[1], HSVMeans[2],*/
 		};
 
+
 		// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de fréquence de Fourier 
 		cv::Mat bgrChannels[3];
 		cv::split(image, bgrChannels);
@@ -229,17 +230,17 @@ void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int genera
 		}
 	}
 	std::cout << std::endl;
-	//ModelUtils::SaveDataFile("data.csv", datas);
+	ModelUtils::SaveDataFile("data.csv", datas);
 }
 
 int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " source_dir [-gen <generation_max>]");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " [-gen <generation_max>]");
 		}
 		std::string source = argv[1];
-		int generation = 1640;
+		int generation = 100;
 
 		// Parse command-line arguments
 		for (int i = 2; i < argc; ++i) {
@@ -285,10 +286,10 @@ int main(int argc, char* argv[])
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 100;
+		generation = 200;
 
 #endif
-		auto step = 0;
+		auto step = 0; // 0: create images and data. 1: only create data.
 		std::vector<DataInfo> datasInfo;
 
 		bool checker = false;

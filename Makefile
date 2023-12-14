@@ -1,6 +1,6 @@
 CXX = g++
 CFLAGS = `pkg-config --cflags --libs opencv4`
-CXXFLAGS = -std=c++20 -Iinc ${CFLAGS}  -Wall -Wextra
+CXXFLAGS = -std=c++20 -Iinc  -Wall -Wextra
 
 VPATH = src
 
@@ -14,11 +14,12 @@ OBJECTS = $(PROGRAMS:%=%.o)
 
 all: $(PROGRAMS) $(MODEL)
 
-%: $(VPATH)/%.cpp $(UTILS)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+
+%: src/%.cpp src/image_processing.cpp src/image_utils.cpp
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(CFLAGS)
 
 $(MODEL): $(VPATH)/$(MODEL).cpp $(UTILS) $(MODEL_UTILS)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(CFLAGS)
 
 clean:
 	rm -rf $(PROGRAMS) $(MODEL)

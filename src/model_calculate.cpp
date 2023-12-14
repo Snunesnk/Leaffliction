@@ -283,9 +283,9 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& datas)
 		std::vector<double> featureMeans, featureStdDevs;
 		ModelUtils::StandardNormalizationData(datas, featureMeans, featureStdDevs);
 
-		//std::random_device rd;
-		//std::mt19937 gen(42);
-		//std::shuffle(datas.begin(), datas.end(), gen);
+		std::random_device rd;
+		std::mt19937 gen(42);
+		std::shuffle(datas.begin(), datas.end(), gen);
 
 		std::vector<size_t> selectedFeatures;
 		auto counter = 0;

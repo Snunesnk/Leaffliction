@@ -92,7 +92,7 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 		};
 
 
-		//// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de fréquence de Fourier 
+		//// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de frï¿½quence de Fourier 
 		//cv::Mat bgrChannels[3];
 		//cv::split(image, bgrChannels);
 
@@ -103,12 +103,12 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 		//	cv::Mat complexChannel;
 		//	cv::dft(grayChannel, complexChannel, cv::DFT_COMPLEX_OUTPUT);
 
-		//	// Séparer les parties réelles et imaginaires
+		//	// Sï¿½parer les parties rï¿½elles et imaginaires
 		//	std::vector<cv::Mat> channels(2);
 		//	cv::split(complexChannel, channels);
 		//	cv::Mat realPart = channels[0];
 
-		//	// Calculer la moyenne des valeurs de la partie réelle pour chaque bande de fréquence
+		//	// Calculer la moyenne des valeurs de la partie rï¿½elle pour chaque bande de frï¿½quence
 		//	int numBands = complexChannel.cols;
 		//	std::vector<double> DFTMeans(numBands, 0.0);
 
@@ -270,7 +270,7 @@ int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " [-gen <generation_max>]");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " source_dir [-gen <generation_max>]");
 		}
 		std::string source = argv[1];
 		int generation = 1640;

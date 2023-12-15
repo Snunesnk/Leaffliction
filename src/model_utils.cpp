@@ -106,7 +106,9 @@ void ModelUtils::StandardNormalizationData(std::vector<DataInfo>& data, std::vec
 			warnings++;
 		}
 	}
-	std::cerr << "Warning: " << warnings << " features have a zero standard deviation." << std::endl;
+	if (warnings) {
+		std::cout << "Warning: " << warnings << " features have a zero standard deviation." << std::endl;
+	}
 	std::cout << std::endl;
 }
 

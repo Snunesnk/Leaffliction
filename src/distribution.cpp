@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
 	// Create Python command
 	std::string pythonCommand = "python -c \"";
 	pythonCommand += "import matplotlib.pyplot as plt;";
-	// Add datas
+	// Add dataBase
 	pythonCommand += "data = [";
 	for (const auto& pair : output_pair)
 		pythonCommand += "('" + pair.first + "', " + pair.second + ",),";

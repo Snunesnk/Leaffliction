@@ -27,13 +27,18 @@ public:
 	static void GradientDescent(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
 		const std::vector<std::vector<double>>& target, const size_t type);
 
-	static void LogisticRegressionTrainning(std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& inputs,
-		const std::vector<std::vector<double>>& valids, const std::vector<std::vector<double>>& types, const size_t epochs);
+	static void LogisticRegressionTrainning(
+		std::vector<std::vector<double>>& weights,
+		const std::vector<std::vector<double>>& trainingInputs,
+		const std::vector<std::vector<double>>& validationInputs,
+		const std::vector<std::vector<double>>& trainingOneHot,
+		const std::vector<std::vector<double>>& validationOneHot,
+		const size_t epochs);
 
-	static void SetupTrainingData(const std::vector<DataInfo>& datas, const std::vector<size_t>& selectedFeatures,
-		std::vector<std::vector<double>>& weights, std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels);
+	static void SetupTrainingData(const std::vector<DataInfo>& dataBase, std::vector<std::vector<double>>& weights,
+		std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingOneHot);
 	
-	static void CreateModel(std::vector<DataInfo>& datas);
+	static void CreateModel(std::vector<DataInfo>& dataBase);
 };
 
 #endif

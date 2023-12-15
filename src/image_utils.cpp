@@ -160,7 +160,7 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		for (int i = 0; i < images[5].rows; i++) {
 			for (int j = 0; j < images[5].cols; j++) {
 				double min = images[5].at<cv::Vec3b>(i, j)[0];
-				if (images[5].at<cv::Vec3b>(i, j)[2] < min) {
+				if (images[5].at<cv::Vec3b>(i, j)[2] > min) {
 					min = images[5].at<cv::Vec3b>(i, j)[2];
 				}
 				images[5].at<cv::Vec3b>(i, j)[1] = (images[5].at<cv::Vec3b>(i, j)[1] < min ? 0 : images[5].at<cv::Vec3b>(i, j)[1] - min);
@@ -170,148 +170,148 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		}
 
 
-		ImageProcessing::Contrast(images[5], 2, 2);
-		cv::GaussianBlur(images[5], images[5], { 11,11 }, 0);
+		//ImageProcessing::Contrast(images[5], 2, 2);
+		//cv::GaussianBlur(images[5], images[5], { 11,11 }, 0);
 
-		cv::cvtColor(images[5], hsvImage, cv::COLOR_BGR2HSV_FULL);
-		std::vector<cv::Point> points;
+		//cv::cvtColor(images[5], hsvImage, cv::COLOR_BGR2HSV_FULL);
+		//std::vector<cv::Point> points;
 
-		int tSize = 4;
-		int startX = 0; // La position de départ en x
-		int endX = images[5].cols - 1; // La position de fin en x
-		int startY = 0; // La position de départ en y
-		int endY = images[5].rows - 1; // La position de fin en y
+		//int tSize = 4;
+		//int startX = 0; // La position de départ en x
+		//int endX = images[5].cols - 1; // La position de fin en x
+		//int startY = 0; // La position de départ en y
+		//int endY = images[5].rows - 1; // La position de fin en y
 
-		// Parcours de gauche à droite
-		for (int i = startY; i <= endY; i++) {
-			double save = 0.0;
-			std::vector<double> stds;
-			for (int k = 0; k < tSize; k++) {
-				stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
-			}
-			save = Mean(stds);
-			for (int j = startX; j <= endX; j++) {
-				stds.clear();
-				for (int k = j; k < j + tSize && k <= endX; k++) {
-					stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
-				}
-				double result = Mean(stds);
-				if (abs(result - save) > 5) {
+		//// Parcours de gauche à droite
+		//for (int i = startY; i <= endY; i++) {
+		//	double save = 0.0;
+		//	std::vector<double> stds;
+		//	for (int k = 0; k < tSize; k++) {
+		//		stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
+		//	}
+		//	save = Mean(stds);
+		//	for (int j = startX; j <= endX; j++) {
+		//		stds.clear();
+		//		for (int k = j; k < j + tSize && k <= endX; k++) {
+		//			stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
+		//		}
+		//		double result = Mean(stds);
+		//		if (abs(result - save) > 5) {
 
-					for (int k = j; k < j + tSize * 2 && k <= endX; k++) {
-						images[5].at<cv::Vec3b>(i, k)[0] = 0;
-						images[5].at<cv::Vec3b>(i, k)[1] = 0;
-						images[5].at<cv::Vec3b>(i, k)[2] = 0;
+		//			for (int k = j; k < j + tSize * 2 && k <= endX; k++) {
+		//				images[5].at<cv::Vec3b>(i, k)[0] = 0;
+		//				images[5].at<cv::Vec3b>(i, k)[1] = 0;
+		//				images[5].at<cv::Vec3b>(i, k)[2] = 0;
 
-					}
-					points.push_back({ j + tSize * 2, i });
-					break;
-				}
-				else {
-					images[5].at<cv::Vec3b>(i, j)[0] = 0;
-					images[5].at<cv::Vec3b>(i, j)[1] = 0;
-					images[5].at<cv::Vec3b>(i, j)[2] = 0;
-					save = (result + save) / 2;
-				}
-			}
-		}
-		// Parcours de droite à gauche
-		for (int i = startY; i <= endY; i++) {
-			double save = 0.0;
-			std::vector<double> stds;
-			for (int k = 0; k < tSize; k++) {
-				stds.push_back(hsvImage.at<cv::Vec3b>(i, endX - k)[2]);
-			}
-			save = Mean(stds);
-			for (int j = endX; j >= startX; j--) {
-				stds.clear();
-				for (int k = j - tSize + 1; k <= j && k >= startX; k++) {
-					stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
-				}
-				double result = Mean(stds);
-				if (abs(result - save) > 5) {
+		//			}
+		//			points.push_back({ j + tSize * 2, i });
+		//			break;
+		//		}
+		//		else {
+		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
+		//			save = (result + save) / 2;
+		//		}
+		//	}
+		//}
+		//// Parcours de droite à gauche
+		//for (int i = startY; i <= endY; i++) {
+		//	double save = 0.0;
+		//	std::vector<double> stds;
+		//	for (int k = 0; k < tSize; k++) {
+		//		stds.push_back(hsvImage.at<cv::Vec3b>(i, endX - k)[2]);
+		//	}
+		//	save = Mean(stds);
+		//	for (int j = endX; j >= startX; j--) {
+		//		stds.clear();
+		//		for (int k = j - tSize + 1; k <= j && k >= startX; k++) {
+		//			stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
+		//		}
+		//		double result = Mean(stds);
+		//		if (abs(result - save) > 5) {
 
-					for (int k = j; k > j - tSize * 2 && k >= startX; k--) {
-						images[5].at<cv::Vec3b>(i, k)[0] = 0;
-						images[5].at<cv::Vec3b>(i, k)[1] = 0;
-						images[5].at<cv::Vec3b>(i, k)[2] = 0;
-					}
-					points.push_back({ j - tSize * 2, i });
-					break;
-				}
-				else {
-					images[5].at<cv::Vec3b>(i, j)[0] = 0;
-					images[5].at<cv::Vec3b>(i, j)[1] = 0;
-					images[5].at<cv::Vec3b>(i, j)[2] = 0;
-					save = (result + save) / 2;
-				}
-			}
-		}
-		// Parcours de haut en bas
-		for (int j = startX; j <= endX; j++) {
-			double save = 0.0;
-			std::vector<double> stds;
-			for (int k = 0; k < tSize; k++) {
-				stds.push_back(hsvImage.at<cv::Vec3b>(endY - k, j)[2]);
-			}
-			save = Mean(stds);
-			for (int i = endY; i >= startY; i--) {
+		//			for (int k = j; k > j - tSize * 2 && k >= startX; k--) {
+		//				images[5].at<cv::Vec3b>(i, k)[0] = 0;
+		//				images[5].at<cv::Vec3b>(i, k)[1] = 0;
+		//				images[5].at<cv::Vec3b>(i, k)[2] = 0;
+		//			}
+		//			points.push_back({ j - tSize * 2, i });
+		//			break;
+		//		}
+		//		else {
+		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
+		//			save = (result + save) / 2;
+		//		}
+		//	}
+		//}
+		//// Parcours de haut en bas
+		//for (int j = startX; j <= endX; j++) {
+		//	double save = 0.0;
+		//	std::vector<double> stds;
+		//	for (int k = 0; k < tSize; k++) {
+		//		stds.push_back(hsvImage.at<cv::Vec3b>(endY - k, j)[2]);
+		//	}
+		//	save = Mean(stds);
+		//	for (int i = endY; i >= startY; i--) {
 
-				stds.clear();
-				for (int k = i - tSize + 1; k <= i && k >= startY; k++) {
-					stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
-				}
-				double result = Mean(stds);
-				if (abs(result - save) > 5) {
+		//		stds.clear();
+		//		for (int k = i - tSize + 1; k <= i && k >= startY; k++) {
+		//			stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
+		//		}
+		//		double result = Mean(stds);
+		//		if (abs(result - save) > 5) {
 
-					for (int k = i; k > i - tSize * 2 && k >= startY; k--) {
-						images[5].at<cv::Vec3b>(k, j)[0] = 0;
-						images[5].at<cv::Vec3b>(k, j)[1] = 0;
-						images[5].at<cv::Vec3b>(k, j)[2] = 0;
-					}
-					points.push_back({ j  , i - tSize * 2 });
-					break;
-				}
-				else {
-					images[5].at<cv::Vec3b>(i, j)[0] = 0;
-					images[5].at<cv::Vec3b>(i, j)[1] = 0;
-					images[5].at<cv::Vec3b>(i, j)[2] = 0;
-					save = (result + save) / 2;
-				}
-			}
-		}
-		// Parcours de bas en haut
-		for (int j = startX; j <= endX; j++) {
-			double save = 0.0;
-			std::vector<double> stds;
-			for (int k = 0; k < tSize; k++) {
-				stds.push_back(hsvImage.at<cv::Vec3b>(startY + k, j)[2]);
-			}
-			save = Mean(stds);
-			for (int i = startY; i <= endY; i++) {
-				stds.clear();
-				for (int k = i; k < i + tSize && k <= endY; k++) {
-					stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
-				}
-				double result = Mean(stds);
-				if (abs(result - save) > 5) {
+		//			for (int k = i; k > i - tSize * 2 && k >= startY; k--) {
+		//				images[5].at<cv::Vec3b>(k, j)[0] = 0;
+		//				images[5].at<cv::Vec3b>(k, j)[1] = 0;
+		//				images[5].at<cv::Vec3b>(k, j)[2] = 0;
+		//			}
+		//			points.push_back({ j  , i - tSize * 2 });
+		//			break;
+		//		}
+		//		else {
+		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
+		//			save = (result + save) / 2;
+		//		}
+		//	}
+		//}
+		//// Parcours de bas en haut
+		//for (int j = startX; j <= endX; j++) {
+		//	double save = 0.0;
+		//	std::vector<double> stds;
+		//	for (int k = 0; k < tSize; k++) {
+		//		stds.push_back(hsvImage.at<cv::Vec3b>(startY + k, j)[2]);
+		//	}
+		//	save = Mean(stds);
+		//	for (int i = startY; i <= endY; i++) {
+		//		stds.clear();
+		//		for (int k = i; k < i + tSize && k <= endY; k++) {
+		//			stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
+		//		}
+		//		double result = Mean(stds);
+		//		if (abs(result - save) > 5) {
 
-					for (int k = i; k < i + tSize * 2 && k <= endY; k++) {
-						images[5].at<cv::Vec3b>(k, j)[0] = 0;
-						images[5].at<cv::Vec3b>(k, j)[1] = 0;
-						images[5].at<cv::Vec3b>(k, j)[2] = 0;
-					}
-					points.push_back({ j  , i + tSize * 2 });
-					break;
-				}
-				else {
-					images[5].at<cv::Vec3b>(i, j)[0] = 0;
-					images[5].at<cv::Vec3b>(i, j)[1] = 0;
-					images[5].at<cv::Vec3b>(i, j)[2] = 0;
-					save = (result + save) / 2;
-				}
-			}
-		}
+		//			for (int k = i; k < i + tSize * 2 && k <= endY; k++) {
+		//				images[5].at<cv::Vec3b>(k, j)[0] = 0;
+		//				images[5].at<cv::Vec3b>(k, j)[1] = 0;
+		//				images[5].at<cv::Vec3b>(k, j)[2] = 0;
+		//			}
+		//			points.push_back({ j  , i + tSize * 2 });
+		//			break;
+		//		}
+		//		else {
+		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
+		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
+		//			save = (result + save) / 2;
+		//		}
+		//	}
+		//}
 
 		cv::Mat grayscaleImage;
 		cv::cvtColor(images[5], grayscaleImage, cv::COLOR_BGR2GRAY); // Convertir en niveaux de gris

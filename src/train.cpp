@@ -10,11 +10,13 @@
 std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformation)
 {
 	if (transformation == 1) {
+
 		// Aspect ratio
 		std::vector<cv::Point> rectanglePoints = ImageProcessing::getMinimumBoundingRectanglePoints(image);
 		return { ImageProcessing::calculateAspectRatioOfObjects(image) };
 	}
 	else if (transformation == 2) {
+
 		// Means colors
 		std::vector<std::vector<double>> RGBValues(3);
 		cv::Mat HSVImage;
@@ -53,11 +55,10 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 		HSVMeans[2] = ImageUtils::Mean(HSVValues[2]);
 
 		std::vector<double> numerics = {
-			RGBMeans[0], RGBMeans[1] ,RGBMeans[2], /*RGMeansDiff,
+			RGBMeans[0], RGBMeans[1] ,RGBMeans[2], RGMeansDiff,
 			RGBStandardDeviation[0], RGBStandardDeviation[1], RGBStandardDeviation[2],
-			HSVMeans[0], HSVMeans[1], HSVMeans[2],*/
+			HSVMeans[0], HSVMeans[1], HSVMeans[2],
 		};
-
 
 		// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de fréquence de Fourier 
 		cv::Mat bgrChannels[3];
@@ -83,13 +84,14 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 				cv::Mat band = realPart.col(i);
 				cv::Scalar mean = cv::mean(band);
 				DFTMeans[i] = mean[0];
-				//numerics.push_back(DFTMeans[i]);
+				numerics.push_back(DFTMeans[i]);
 			}
 		}
 
 		return numerics;
 	}
-	else if (transformation <= 5) {
+	else if (transformation < 5) {
+
 		// Pct selected hue 
 		double mean = 0;
 		double count = 0;
@@ -130,13 +132,13 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 		//}
 		//return { meansHSV[0] / countHSV, meansHSV[1] / countHSV, meansHSV[2] / countHSV };
 	}
-	return { 0 };
+	return {  };
 }
 
-void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int generation)
+void CreateData(std::string source, std::vector<DataInfo>& dataBaseInfo, int generation)
 {
 	const std::vector<std::string> features = { "T1", "T2", "T3", "T4", "T5", "T6" };
-	std::vector<std::vector<std::string>> datas;
+	std::vector<std::vector<std::string>> dataBase;
 
 	for (const auto& entry : std::filesystem::directory_iterator(source)) {
 		const std::string target = entry.path().filename().generic_string();
@@ -157,7 +159,7 @@ void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int genera
 			}
 			// New line
 			if (feature == -1) {
-				lineElements.push_back(std::to_string(datas.size()));
+				lineElements.push_back(std::to_string(dataBase.size()));
 				lineElements.push_back(target);
 				auto position = files[i].find_last_of('_');
 				if (position == std::string::npos) {
@@ -183,7 +185,7 @@ void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int genera
 			// When line completed, push it and start new line
 			if (feature == features.size()) {
 				feature = -1;
-				datas.push_back(lineElements);
+				dataBase.push_back(lineElements);
 				lineElements.clear();
 				// Progression
 				int progress = (i + 1) * 100 / static_cast<int>(files.size());
@@ -197,8 +199,8 @@ void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int genera
 	}
 
 	// Sort features
-	for (auto i = 0; i < datas.size(); i++) {
-		std::vector<std::string> line = datas[i];
+	for (auto i = 0; i < dataBase.size(); i++) {
+		std::vector<std::string> line = dataBase[i];
 		line.erase(line.begin(), line.begin() + 3);
 		std::sort(line.begin(), line.end(), [](const std::string& a, const std::string& b) {
 			std::string numeroA = a.substr(0, a.find('V'));
@@ -215,22 +217,22 @@ void CreateData(std::string source, std::vector<DataInfo>& datasInfo, int genera
 		);
 
 		for (auto j = 0; j < line.size(); j++) {
-			datas[i][j + 3] = line[j].erase(0, line[j].find_last_of('V') + 1);
+			dataBase[i][j + 3] = line[j].erase(0, line[j].find_last_of('V') + 1);
 		}
 	}
 
-	for (auto i = 0; i < datas.size(); i++) {
-		datasInfo.push_back(DataInfo());
-		datasInfo.back().index = std::stoi(datas[i][0]);
-		datasInfo.back().labels.push_back(datas[i][1]);
-		datasInfo.back().labels.push_back(datas[i][2]);
+	for (auto i = 0; i < dataBase.size(); i++) {
+		dataBaseInfo.push_back(DataInfo());
+		dataBaseInfo.back().index = std::stoi(dataBase[i][0]);
+		dataBaseInfo.back().labels.push_back(dataBase[i][1]);
+		dataBaseInfo.back().labels.push_back(dataBase[i][2]);
 
-		for (auto j = 0; j < datas[i].size() - 3; j++) {
-			datasInfo.back().features.push_back(std::stod(datas[i][j + 3]));
+		for (auto j = 0; j < dataBase[i].size() - 3; j++) {
+			dataBaseInfo.back().features.push_back(std::stod(dataBase[i][j + 3]));
 		}
 	}
 	std::cout << std::endl;
-	ModelUtils::SaveDataFile("data.csv", datas);
+	ModelUtils::SaveDataFile("data.csv", dataBase);
 }
 
 int main(int argc, char* argv[])
@@ -286,11 +288,11 @@ int main(int argc, char* argv[])
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 200;
+		generation = 50;
 
 #endif
 		auto step = 0; // 0: create images and data. 1: only create data.
-		std::vector<DataInfo> datasInfo;
+		std::vector<DataInfo> dataBaseInfo;
 
 		bool checker = false;
 		for (const auto& entry : std::filesystem::directory_iterator("./")) {
@@ -377,15 +379,15 @@ int main(int argc, char* argv[])
 			}
 			if (step <= 1) {
 				std::cout << "Doing data generation..." << std::endl;
-				CreateData(source, datasInfo, generation * 7);
+				CreateData(source, dataBaseInfo, generation * 7);
 			}
 		}
 		else {
 			std::cout << "Loading data.csv..." << std::endl;
-			ModelUtils::LoadDataFile(datasInfo, "data.csv");
+			ModelUtils::LoadDataFile(dataBaseInfo, "data.csv");
 		}
 		std::cout << "Creating model..." << std::endl;
-		ModelCalculate::CreateModel(datasInfo);
+		ModelCalculate::CreateModel(dataBaseInfo);
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;

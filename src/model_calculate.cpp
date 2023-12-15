@@ -160,6 +160,12 @@ double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, 
 				predictedHouse = type;
 			}
 		}
+		// test only type accuracy
+		//auto type1 = types[i][0] + types[i][1] + types[i][2] + types[i][3];
+		//auto type2 = types[i][4] + types[i][5] + types[i][6] + types[i][7];
+		//if ((predictedHouse < 4 && type1) || (predictedHouse >= 4 && type2)) {
+		//	correctPredictions++;
+		//}
 		if (types[i][predictedHouse] == 1.0) {
 			correctPredictions++;
 		}
@@ -219,8 +225,13 @@ void ModelCalculate::GradientDescent(const std::vector<std::vector<double>>& inp
 	weights[type] = tmp_weights[type];
 }
 
-void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>>& weights, const std::vector<std::vector<double>>& inputs,
-	const std::vector<std::vector<double>>& valids, const std::vector<std::vector<double>>& types, const size_t epochs)
+void ModelCalculate::LogisticRegressionTrainning(
+	std::vector<std::vector<double>>& weights,
+	const std::vector<std::vector<double>>& trainingInputs,
+	const std::vector<std::vector<double>>& validationInputs,
+	const std::vector<std::vector<double>>& trainingOneHot,
+	const std::vector<std::vector<double>>& validationOneHot,
+	const size_t epochs)
 {
 	const size_t typesCount = weights.size();
 
@@ -234,88 +245,93 @@ void ModelCalculate::LogisticRegressionTrainning(std::vector<std::vector<double>
 	// Training
 	for (size_t epoch = 0; epoch < epochs; ++epoch) {
 		for (size_t type = 0; type < typesCount; type++) {
-			ModelCalculate::GradientDescent(inputs, weights, types, type);
+			ModelCalculate::GradientDescent(trainingInputs, weights, trainingOneHot, type);
 		}
 		// Loss
 		std::cout << "Epoch " << std::left << std::setw(std::to_string(epochs).length() + 2) << epoch + 1;
 		for (size_t type = 0; type < typesCount; type++) {
-			double loss = ModelCalculate::LossFunction(inputs, weights, types, type);
+			double loss = ModelCalculate::LossFunction(trainingInputs, weights, trainingOneHot, type);
 			std::cout << std::setw(10) << std::setprecision(6) << loss;
 		}
-		double accuracy = ModelCalculate::Accuracy(valids, types, weights);
+		double accuracy = ModelCalculate::Accuracy(validationInputs, validationOneHot, weights);
 		std::cout << std::setw(5) << std::fixed << std::setprecision(2) << accuracy << "%" << std::endl;
 	}
 }
 
-void ModelCalculate::SetupTrainingData(const std::vector<DataInfo>& datas, const std::vector<size_t>& selectedFeatures,
-	std::vector<std::vector<double>>& weights, std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingLabels)
+void ModelCalculate::SetupTrainingData(
+	const std::vector<DataInfo>& dataBase,
+	std::vector<std::vector<double>>& weights,
+	std::vector<std::vector<double>>& trainingInputs,
+	std::vector<std::vector<double>>& trainingOneHot)
 {
 	const size_t targetCount = ModelUtils::types.size();
-	// Initialize weights randomly
+	const size_t featureCount = dataBase[0].features.size();
+
+	// Init weights
 	std::mt19937 gen(42);
 	std::uniform_real_distribution<double> distribution(-1.0, 1.0);
 	for (size_t i = 0; i < targetCount; ++i) {
-		for (size_t j = 0; j < selectedFeatures.size(); ++j) {
+		for (size_t j = 0; j < featureCount; ++j) {
 			weights[i][j] = distribution(gen);
 		}
 	}
-	// Populate training data
-	for (size_t i = 0; i < datas.size(); i++) {
+
+	for (size_t i = 0; i < dataBase.size(); i++) {
+		// Add training input
 		std::vector<double> selection;
-		for (auto feature : selectedFeatures) {
-			selection.push_back(datas[i].features[feature - 1]);
+		for (size_t j = 0; j < featureCount; ++j) {
+			selection.push_back(dataBase[i].features[j]);
 		}
 		trainingInputs.push_back(selection);
+		// Add training one-hot
 		std::vector<double> result(targetCount, 0.0);
 		for (size_t j = 0; j < targetCount; ++j) {
-			if (ModelUtils::types[j] == datas[i].labels[0]) {
+			if (ModelUtils::types[j] == dataBase[i].labels[0]) {
 				result[j] = 1.0;
 				break;
 			}
 		}
-		trainingLabels.push_back(result);
+		trainingOneHot.push_back(result);
 	}
 }
 
-void ModelCalculate::CreateModel(std::vector<DataInfo>& datas)
+void ModelCalculate::CreateModel(std::vector<DataInfo>& dataBase)
 {
 	try {
 		std::vector<double> featureMeans, featureStdDevs;
-		ModelUtils::StandardNormalizationData(datas, featureMeans, featureStdDevs);
+		ModelUtils::StandardNormalizationData(dataBase, featureMeans, featureStdDevs);
 
 		std::random_device rd;
 		std::mt19937 gen(42);
-		std::shuffle(datas.begin(), datas.end(), gen);
+		std::shuffle(dataBase.begin(), dataBase.end(), gen);
 
-		std::vector<size_t> selectedFeatures;
-		auto counter = 0;
-		for (auto f : datas[0].features) {
-			selectedFeatures.push_back(++counter);
-		}
+		//extensionScatterPlotMatrix(dataBase, selectedFeatures.size());
 
-		//extensionScatterPlotMatrix(datas, selectedFeatures.size());
-
-		std::vector<std::vector<double>> weights(ModelUtils::types.size(), std::vector<double>(selectedFeatures.size(), 0.0));
-		std::vector<std::vector<double>> inputs, types, valids;
-		ModelCalculate::SetupTrainingData(datas, selectedFeatures, weights, inputs, types);
+		std::vector<std::vector<double>> weights(ModelUtils::types.size(), std::vector<double>(dataBase[0].features.size(), 0.0));
+		std::vector<std::vector<double>> trainingInputs, trainingOneHot, validationInputs, validationOneHot;
+		ModelCalculate::SetupTrainingData(dataBase, weights, trainingInputs, trainingOneHot);
 
 		// Split data for valids
-		std::cout << "inputs : " << inputs.size() << std::endl;
-		auto classSize = inputs.size() / 8;
+		std::cout << "trainingInputs : " << trainingInputs.size() << std::endl;
+		std::cout << "trainingOneHot : " << trainingInputs.size() << std::endl;
+
+		auto classSize = trainingInputs.size() / 8;
 		auto forValidation = 13;
 		for (int c = 1; c <= 8; c++) {
 			auto lastIndexOfClass = classSize * c;
-			valids.insert(valids.end(), inputs.begin() + lastIndexOfClass - forValidation, inputs.begin() + lastIndexOfClass);
+			validationInputs.insert(validationInputs.end(), trainingInputs.begin() + lastIndexOfClass - forValidation, trainingInputs.begin() + lastIndexOfClass);
+			validationOneHot.insert(validationOneHot.end(), trainingOneHot.begin() + lastIndexOfClass - forValidation, trainingOneHot.begin() + lastIndexOfClass);
 		}
 		for (int c = 1; c <= 8; c++) {
 			auto lastIndexOfClass = classSize * c - forValidation * (c - 1);
-			inputs.erase(inputs.begin() + lastIndexOfClass - forValidation, inputs.begin() + lastIndexOfClass);
+			trainingInputs.erase(trainingInputs.begin() + lastIndexOfClass - forValidation, trainingInputs.begin() + lastIndexOfClass);
+			trainingOneHot.erase(trainingOneHot.begin() + lastIndexOfClass - forValidation, trainingOneHot.begin() + lastIndexOfClass);
 		}
 
-		std::cout << "for train : " << inputs.size() << std::endl;
-		std::cout << "for valid : " << valids.size() << std::endl;
+		std::cout << "for train : " << trainingInputs.size() << std::endl;
+		std::cout << "for valid : " << validationInputs.size() << std::endl;
 		// Train the model
-		ModelCalculate::LogisticRegressionTrainning(weights, inputs, valids, types, 2000);
+		ModelCalculate::LogisticRegressionTrainning(weights, trainingInputs, validationInputs, trainingOneHot, validationOneHot, 2000);
 		// Save weights and normalization parameters
 		ModelUtils::SaveModelInformations(weights, featureMeans, featureStdDevs, "models.save");
 	}

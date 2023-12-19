@@ -27,11 +27,11 @@ public:
 	static void ExtractBlueChannel(cv::Mat& image);
 	static void drawPolylinesAroundObject(cv::Mat image);
 	static void drawRectangleAroundObject(cv::Mat image);
-	static std::vector<cv::Point> getConvexHullPoints(cv::Mat image);
+	static std::vector<cv::Point> GetConvexHullPoints(cv::Mat image);
 	static std::vector<cv::Point> getMinimumBoundingRectanglePoints(cv::Mat image);
 	static void CropImageWithPoints(cv::Mat& image, const std::vector<cv::Point>& points);
 	static double calculateAspectRatioOfObjects(cv::Mat image);
-	static std::vector<cv::Point> ExtractShape(cv::Mat& image);
+	static void CutLeaf(cv::Mat& image);
 };
 
 #endif

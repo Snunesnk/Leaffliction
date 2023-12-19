@@ -10,7 +10,7 @@
 std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformation)
 {
 	if (transformation == 1) {
-
+		return{};
 		// Aspect ratio
 		std::vector<cv::Point> rectanglePoints = ImageProcessing::getMinimumBoundingRectanglePoints(image);
 		return { ImageProcessing::calculateAspectRatioOfObjects(image) };
@@ -90,8 +90,8 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 
 		return numerics;
 	}
-	else if (transformation < 5) {
-
+	else if (transformation <= 5) {
+		return{};
 		// Pct selected hue 
 		double mean = 0;
 		double count = 0;
@@ -101,7 +101,7 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 				if (pixel[0] >= 250 && pixel[1] <= 5 && pixel[2] <= 5) {
 					count++;
 				}
-				else if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
+				else if (pixel[0] >= 5 || pixel[1] >= 5 || pixel[2] >= 5) {
 					mean++;
 					count++;
 				}
@@ -135,104 +135,111 @@ std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformatio
 	return {  };
 }
 
-void CreateData(std::string source, std::vector<DataInfo>& dataBaseInfo, int generation)
+void CreateData(std::string source, std::vector<DataInfo>& dataBase, int generation)
 {
 	const std::vector<std::string> features = { "T1", "T2", "T3", "T4", "T5", "T6" };
-	std::vector<std::vector<std::string>> dataBase;
+	std::vector<std::vector<std::string>> dataLines;
 
 	for (const auto& entry : std::filesystem::directory_iterator(source)) {
-		const std::string target = entry.path().filename().generic_string();
+		const std::string targetClass = entry.path().filename().generic_string();
 		// Next if not expected directory
-		if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), target) == ModelUtils::types.end()) {
+		if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), targetClass) == ModelUtils::types.end()) {
 			continue;
 		}
 		const std::string source = entry.path().generic_string() + "/";
-		const std::vector<std::string> files = ImageUtils::GetImagesInDirectory(source, generation);
-		auto feature = -1;
 
-		std::vector<std::string> lineElements;
-		for (auto i = 0; i < files.size(); i++) {
-			std::string filePath = source + files[i];
-			cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
-			if (image.empty()) {
-				throw std::runtime_error("Unable to load the image.");
+		//create packs
+		std::vector<std::string> files = ImageUtils::GetImagesInDirectory(source, generation);
+		std::unordered_map<std::string, size_t> packIndices;
+		std::vector<std::vector<std::string>> transmoPacks;
+		//split
+		for (auto& file : files) {
+			const size_t pos = file.find_last_of('_');
+			if (pos == std::string::npos || file[pos + 1] != 'T') {
+				continue;
 			}
-			// New line
-			if (feature == -1) {
-				lineElements.push_back(std::to_string(dataBase.size()));
-				lineElements.push_back(target);
-				auto position = files[i].find_last_of('_');
-				if (position == std::string::npos) {
-					position = files[i].find_last_of('.');
+			const std::string name = file.substr(0, pos);
+			if (packIndices.find(name) == packIndices.end()) {
+				packIndices[name] = transmoPacks.size();
+				transmoPacks.push_back({ file });
+			}
+			else {
+				transmoPacks[packIndices[name]].push_back(file);
+			}
+		}
+		//sort
+		for (auto& pack : transmoPacks) {
+			std::sort(pack.begin(), pack.end(), [](const std::string& a, const std::string& b) {
+				std::string numeroA = a.substr(a.length() - 5, 1);
+				std::string numeroB = b.substr(b.length() - 5, 1);
+				try {
+					int intA = std::stoi(numeroA);
+					int intB = std::stoi(numeroB);
+					return intA < intB;
 				}
-				lineElements.push_back(files[i].substr(0, position));
-				feature++;
-			}
-			// Features // REFAIRE L ORDRE DES IMAGES CAR PROB AVEC AUGS
-			for (auto j = 0; j < features.size(); j++) {
-				size_t position = files[i].find(features[j]);
-				if (position != std::string::npos) {
-					std::vector<double> result = getTransformtionInfo(image, features[j].back() - '0');
-					for (auto k = 0; k < result.size(); k++) {
-						lineElements.push_back(features[j].back() + std::to_string(k) + "V" + std::to_string(result[k]));
-					}
-					feature++;
-					break;
+				catch (...) {
+					throw std::runtime_error("Error: stoi crash");
 				}
+				}
+			);
+		}
+		files.clear();
+
+		for (auto& pack : transmoPacks) {
+			if (pack.size() != 6) {
+				continue;
 			}
-			// Line filePath
-			std::cout << "\r\033[K" << filePath;
+			std::vector<std::string> dataLine;
+			for (auto i = 0; i < pack.size(); i++) {
+				std::string filePath = source + pack[i];
+				cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
+				if (image.empty()) {
+					throw std::runtime_error("Unable to load the image.");
+				}
+				// add new line
+				if (i == 0) {
+					// add index
+					dataLine.push_back(std::to_string(dataLines.size()));
+					// add class
+					dataLine.push_back(targetClass);
+					auto position = pack[i].find_last_of('_');
+					// add image name
+					dataLine.push_back(pack[i].substr(0, position));
+				}
+				// add features 
+				const std::vector<double> result = getTransformtionInfo(image, i + 1);
+				for (auto k = 0; k < result.size(); k++) {
+					dataLine.push_back(std::to_string(result[k]));
+				}
+				// Display
+				std::cout << "\r\033[K" << filePath;
+			}
 			// When line completed, push it and start new line
-			if (feature == features.size()) {
-				feature = -1;
-				dataBase.push_back(lineElements);
-				lineElements.clear();
-				// Progression
-				int progress = (i + 1) * 100 / static_cast<int>(files.size());
-				int numComplete = (progress * 50) / 100;
-				int numRemaining = 50 - numComplete;
-				std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
-				std::cout << "\033[A";
-			}
+			dataLines.push_back(dataLine);
+			// Display
+			int progress = ((dataLines.size() + 1) * 100) / ((generation / 7) * 8);
+			int numComplete = (progress * 50) / 100;
+			int numRemaining = 50 - numComplete;
+			std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%";
+			std::cout << "\033[A";
 		}
-		std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
+		std::cout << "\033[A\r\033[K";
+		std::cout << "\033[A\r\033[K";
 	}
+	std::cout << "\n\n\r\033[K\n\r\033[K\033[A\033[A\033[A\033[A";
+	//
+	for (auto i = 0; i < dataLines.size(); i++) {
+		dataBase.push_back(DataInfo());
+		dataBase.back().index = std::stoi(dataLines[i][0]);
+		dataBase.back().labels.push_back(dataLines[i][1]);
+		dataBase.back().labels.push_back(dataLines[i][2]);
 
-	// Sort features
-	for (auto i = 0; i < dataBase.size(); i++) {
-		std::vector<std::string> line = dataBase[i];
-		line.erase(line.begin(), line.begin() + 3);
-		std::sort(line.begin(), line.end(), [](const std::string& a, const std::string& b) {
-			std::string numeroA = a.substr(0, a.find('V'));
-			std::string numeroB = b.substr(0, b.find('V'));
-			try {
-				int intA = std::stoi(numeroA);
-				int intB = std::stoi(numeroB);
-				return intA < intB;
-			}
-			catch (...) {
-				throw std::runtime_error("Error: sort features");
-			}
-			}
-		);
-
-		for (auto j = 0; j < line.size(); j++) {
-			dataBase[i][j + 3] = line[j].erase(0, line[j].find_last_of('V') + 1);
-		}
-	}
-
-	for (auto i = 0; i < dataBase.size(); i++) {
-		dataBaseInfo.push_back(DataInfo());
-		dataBaseInfo.back().index = std::stoi(dataBase[i][0]);
-		dataBaseInfo.back().labels.push_back(dataBase[i][1]);
-		dataBaseInfo.back().labels.push_back(dataBase[i][2]);
-
-		for (auto j = 0; j < dataBase[i].size() - 3; j++) {
-			dataBaseInfo.back().features.push_back(std::stod(dataBase[i][j + 3]));
+		for (auto j = 0; j < dataLines[i].size() - 3; j++) {
+			dataBase.back().features.push_back(std::stod(dataLines[i][j + 3]));
 		}
 	}
 	std::cout << std::endl;
-	ModelUtils::SaveDataFile("data.csv", dataBase);
+	ModelUtils::SaveDataFile("data.csv", dataLines);
 }
 
 int main(int argc, char* argv[])
@@ -288,11 +295,11 @@ int main(int argc, char* argv[])
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 50;
+		generation = 200;
 
 #endif
-		auto step = 0; // 0: create images and data. 1: only create data.
-		std::vector<DataInfo> dataBaseInfo;
+		auto step = 1; // 0: create images and data. 1: only create data.
+		std::vector<DataInfo> dataBase;
 
 		bool checker = false;
 		for (const auto& entry : std::filesystem::directory_iterator("./")) {
@@ -379,15 +386,15 @@ int main(int argc, char* argv[])
 			}
 			if (step <= 1) {
 				std::cout << "Doing data generation..." << std::endl;
-				CreateData(source, dataBaseInfo, generation * 7);
+				CreateData(source, dataBase, generation * 7);
 			}
 		}
 		else {
 			std::cout << "Loading data.csv..." << std::endl;
-			ModelUtils::LoadDataFile(dataBaseInfo, "data.csv");
+			ModelUtils::LoadDataFile(dataBase, "data.csv");
 		}
 		std::cout << "Creating model..." << std::endl;
-		ModelCalculate::CreateModel(dataBaseInfo);
+		ModelCalculate::CreateModel(dataBase);
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;

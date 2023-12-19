@@ -212,7 +212,7 @@ double ModelCalculate::LossFunctionPartialDerivative(const std::vector<std::vect
 void ModelCalculate::GradientDescent(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
 	const std::vector<std::vector<double>>& target, const size_t type)
 {
-	const double learningRate = 0.1;
+	const double learningRate = 0.9;
 	const size_t size = weights[0].size();
 	std::vector<std::vector<double>> tmp_weights = weights;
 	tmp_weights[type][0] = weights[type][0];
@@ -225,7 +225,7 @@ void ModelCalculate::GradientDescent(const std::vector<std::vector<double>>& inp
 	weights[type] = tmp_weights[type];
 }
 
-void ModelCalculate::LogisticRegressionTrainning(
+void ModelCalculate::LogisticRegressionOneHotTrainning(
 	std::vector<std::vector<double>>& weights,
 	const std::vector<std::vector<double>>& trainingInputs,
 	const std::vector<std::vector<double>>& validationInputs,
@@ -268,8 +268,9 @@ void ModelCalculate::SetupTrainingData(
 	const size_t featureCount = dataBase[0].features.size();
 
 	// Init weights
-	std::mt19937 gen(42);
-	std::uniform_real_distribution<double> distribution(-1.0, 1.0);
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<double> distribution(-0.1, 0.1);
 	for (size_t i = 0; i < targetCount; ++i) {
 		for (size_t j = 0; j < featureCount; ++j) {
 			weights[i][j] = distribution(gen);
@@ -301,9 +302,9 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& dataBase)
 		std::vector<double> featureMeans, featureStdDevs;
 		ModelUtils::StandardNormalizationData(dataBase, featureMeans, featureStdDevs);
 
-		std::random_device rd;
-		std::mt19937 gen(42);
-		std::shuffle(dataBase.begin(), dataBase.end(), gen);
+		//std::random_device rd;
+		//std::mt19937 gen(rd());
+		//std::shuffle(dataBase.begin(), dataBase.end(), gen);
 
 		//extensionScatterPlotMatrix(dataBase, selectedFeatures.size());
 
@@ -311,10 +312,9 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& dataBase)
 		std::vector<std::vector<double>> trainingInputs, trainingOneHot, validationInputs, validationOneHot;
 		ModelCalculate::SetupTrainingData(dataBase, weights, trainingInputs, trainingOneHot);
 
-		// Split data for valids
+		// Split data for validation
 		std::cout << "trainingInputs : " << trainingInputs.size() << std::endl;
 		std::cout << "trainingOneHot : " << trainingInputs.size() << std::endl;
-
 		auto classSize = trainingInputs.size() / 8;
 		auto forValidation = 13;
 		for (int c = 1; c <= 8; c++) {
@@ -327,13 +327,14 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& dataBase)
 			trainingInputs.erase(trainingInputs.begin() + lastIndexOfClass - forValidation, trainingInputs.begin() + lastIndexOfClass);
 			trainingOneHot.erase(trainingOneHot.begin() + lastIndexOfClass - forValidation, trainingOneHot.begin() + lastIndexOfClass);
 		}
-
 		std::cout << "for train : " << trainingInputs.size() << std::endl;
 		std::cout << "for valid : " << validationInputs.size() << std::endl;
-		// Train the model
-		ModelCalculate::LogisticRegressionTrainning(weights, trainingInputs, validationInputs, trainingOneHot, validationOneHot, 2000);
-		// Save weights and normalization parameters
-		ModelUtils::SaveModelInformations(weights, featureMeans, featureStdDevs, "models.save");
+
+		// Train models
+		ModelCalculate::LogisticRegressionOneHotTrainning(weights, trainingInputs, validationInputs, trainingOneHot, validationOneHot, 2000);
+
+		// Save models
+		ModelUtils::SaveModels(weights, featureMeans, featureStdDevs, "models.save");
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;

@@ -66,24 +66,14 @@ int main(int argc, char* argv[]) {
 			}
 		}
 #ifdef _MSC_VER
-		//images
-		//	|--- Apple_Black_rot
-		//	|    '--- 620 files
-		//	|--- Apple_healthy
-		//	|    '--- 1640 files
-		//	|--- Apple_rust
-		//	|    '--- 275 files
-		//	|--- Apple_scab
-		//	|    '--- 629 files
-		//	|--- Grape_Black_rot
-		//	|    '--- 1178 files
-		//	|--- Grape_Esca
-		//	|    '--- 1382 files
-		//	|--- Grape_healthy
-		//	|    '--- 422 files
-		//	|--- Grape_spot
-		//	|    '--- 1075 files
-		//	'--- 0 files
+		// Apple_Black_rot     620 files
+		// Apple_healthy       1640 files
+		// Apple_rust          275 files
+		// Apple_scab          629 files
+		// Grape_Black_rot     1178 files
+		// Grape_Esca          1382 files
+		// Grape_healthy       422 files
+		// Grape_spot          1075 files
 		source = "images/Grape_spot";
 		destination = "images/Grape_spot";
 		generation = 1640 - 1075;

@@ -19,7 +19,7 @@ public:
 	static void LoadDataFile(std::vector<DataInfo>& datainfos, const std::string& filename);
 	static void SaveDataFile(const std::string& filename, const std::vector<std::vector<std::string>>& data);
 	static void StandardNormalizationData(std::vector<DataInfo>& data, std::vector<double>& featureMeans, std::vector<double>& featureStdDevs);
-	static void SaveModelInformations(const std::vector<std::vector<double>>& weights, const std::vector<double>& featureMeans, const std::vector<double>& featureStdDevs, const std::string& filename);
+	static void SaveModels(const std::vector<std::vector<double>>& weights, const std::vector<double>& featureMeans, const std::vector<double>& featureStdDevs, const std::string& filename);
 	static void LoadModelInformations(std::vector<std::vector<double>>& weights, std::vector<double>& featureMeans, std::vector<double>& featureStdDevs, const std::string& filename);
 };
 

@@ -112,7 +112,7 @@ void ModelUtils::StandardNormalizationData(std::vector<DataInfo>& data, std::vec
 	std::cout << std::endl;
 }
 
-void ModelUtils::SaveModelInformations(const std::vector<std::vector<double>>& weights,
+void ModelUtils::SaveModels(const std::vector<std::vector<double>>& weights,
 	const std::vector<double>& featureMeans,
 	const std::vector<double>& featureStdDevs,
 	const std::string& filename)

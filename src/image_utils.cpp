@@ -125,213 +125,32 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		if (originalImage.empty()) {
 			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
-		//ImageProcessing::EqualizeHistogramSaturation(originalImage);
+
 		std::vector<cv::Mat> images;
 		// Create a vector to store multiple copies of the loaded image
 		for (int i = 0; i < 6; i++) {
 			images.push_back(originalImage.clone());
 		}
 
-		// Apply various image processing operations to different copies of the image
-		std::vector<cv::Point> pts = ImageProcessing::ExtractShape(images[0]);
-		// Plage pour le vert
-		cv::Scalar green_lower(40, 0, 0); // Basse limite (H, S, V)
-		cv::Scalar green_upper(100, 255, 255); // Haute limite (H, S, V)
+		ImageProcessing::CutLeaf(images[0]);
+
+		// green
+		images[2] = images[0].clone();
+		cv::Scalar green_lower(40, 0, 0);
+		cv::Scalar green_upper(100, 255, 255);
 		ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
-		ImageProcessing::CropImageWithPoints(images[2], pts);
-		// Plage pour le rouge (rouge pur)
-		cv::Scalar red_lower1(0, 0, 0); // Basse limite (H, S, V)
-		cv::Scalar red_upper1(40, 255, 255); // Haute limite (H, S, V)
-		ImageProcessing::ColorFiltering(images[3], red_lower1, red_upper1, cv::Scalar(255, 0, 0));
-		ImageProcessing::CropImageWithPoints(images[3], pts);
-		ImageProcessing::EqualizeHistogramSaturation(images[4]);
 
+		// yellow
+		images[3] = images[0].clone();
+		cv::Scalar yellow_lower(25, 0, 0);
+		cv::Scalar yellow_upper(40, 255, 255);
+		ImageProcessing::ColorFiltering(images[3], yellow_lower, yellow_upper, cv::Scalar(255, 0, 0));
 
-		//ImageProcessing::EqualizeHistogramValue(images[5]);
-		cv::Mat hsvImage;
-		cv::cvtColor(images[5], hsvImage, cv::COLOR_BGR2HSV_FULL);
-		for (int i = 0; i < images[5].rows; i++) {
-			for (int j = 0; j < images[5].cols; j++) {
-				//hsvImage.at<cv::Vec3b>(i, j)[0] = 128;
-				hsvImage.at<cv::Vec3b>(i, j)[2] = 128;
-			}
-		}
-		cv::cvtColor(hsvImage, images[5], cv::COLOR_HSV2BGR_FULL);
-		for (int i = 0; i < images[5].rows; i++) {
-			for (int j = 0; j < images[5].cols; j++) {
-				double min = images[5].at<cv::Vec3b>(i, j)[0];
-				if (images[5].at<cv::Vec3b>(i, j)[2] > min) {
-					min = images[5].at<cv::Vec3b>(i, j)[2];
-				}
-				images[5].at<cv::Vec3b>(i, j)[1] = (images[5].at<cv::Vec3b>(i, j)[1] < min ? 0 : images[5].at<cv::Vec3b>(i, j)[1] - min);
-				images[5].at<cv::Vec3b>(i, j)[0] = (images[5].at<cv::Vec3b>(i, j)[0] < min ? 0 : images[5].at<cv::Vec3b>(i, j)[0] - min);
-				images[5].at<cv::Vec3b>(i, j)[2] = (images[5].at<cv::Vec3b>(i, j)[2] < min ? 0 : images[5].at<cv::Vec3b>(i, j)[2] - min);
-			}
-		}
-
-
-		//ImageProcessing::Contrast(images[5], 2, 2);
-		//cv::GaussianBlur(images[5], images[5], { 11,11 }, 0);
-
-		//cv::cvtColor(images[5], hsvImage, cv::COLOR_BGR2HSV_FULL);
-		//std::vector<cv::Point> points;
-
-		//int tSize = 4;
-		//int startX = 0; // La position de départ en x
-		//int endX = images[5].cols - 1; // La position de fin en x
-		//int startY = 0; // La position de départ en y
-		//int endY = images[5].rows - 1; // La position de fin en y
-
-		//// Parcours de gauche à droite
-		//for (int i = startY; i <= endY; i++) {
-		//	double save = 0.0;
-		//	std::vector<double> stds;
-		//	for (int k = 0; k < tSize; k++) {
-		//		stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
-		//	}
-		//	save = Mean(stds);
-		//	for (int j = startX; j <= endX; j++) {
-		//		stds.clear();
-		//		for (int k = j; k < j + tSize && k <= endX; k++) {
-		//			stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
-		//		}
-		//		double result = Mean(stds);
-		//		if (abs(result - save) > 5) {
-
-		//			for (int k = j; k < j + tSize * 2 && k <= endX; k++) {
-		//				images[5].at<cv::Vec3b>(i, k)[0] = 0;
-		//				images[5].at<cv::Vec3b>(i, k)[1] = 0;
-		//				images[5].at<cv::Vec3b>(i, k)[2] = 0;
-
-		//			}
-		//			points.push_back({ j + tSize * 2, i });
-		//			break;
-		//		}
-		//		else {
-		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
-		//			save = (result + save) / 2;
-		//		}
-		//	}
-		//}
-		//// Parcours de droite à gauche
-		//for (int i = startY; i <= endY; i++) {
-		//	double save = 0.0;
-		//	std::vector<double> stds;
-		//	for (int k = 0; k < tSize; k++) {
-		//		stds.push_back(hsvImage.at<cv::Vec3b>(i, endX - k)[2]);
-		//	}
-		//	save = Mean(stds);
-		//	for (int j = endX; j >= startX; j--) {
-		//		stds.clear();
-		//		for (int k = j - tSize + 1; k <= j && k >= startX; k++) {
-		//			stds.push_back(hsvImage.at<cv::Vec3b>(i, k)[2]);
-		//		}
-		//		double result = Mean(stds);
-		//		if (abs(result - save) > 5) {
-
-		//			for (int k = j; k > j - tSize * 2 && k >= startX; k--) {
-		//				images[5].at<cv::Vec3b>(i, k)[0] = 0;
-		//				images[5].at<cv::Vec3b>(i, k)[1] = 0;
-		//				images[5].at<cv::Vec3b>(i, k)[2] = 0;
-		//			}
-		//			points.push_back({ j - tSize * 2, i });
-		//			break;
-		//		}
-		//		else {
-		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
-		//			save = (result + save) / 2;
-		//		}
-		//	}
-		//}
-		//// Parcours de haut en bas
-		//for (int j = startX; j <= endX; j++) {
-		//	double save = 0.0;
-		//	std::vector<double> stds;
-		//	for (int k = 0; k < tSize; k++) {
-		//		stds.push_back(hsvImage.at<cv::Vec3b>(endY - k, j)[2]);
-		//	}
-		//	save = Mean(stds);
-		//	for (int i = endY; i >= startY; i--) {
-
-		//		stds.clear();
-		//		for (int k = i - tSize + 1; k <= i && k >= startY; k++) {
-		//			stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
-		//		}
-		//		double result = Mean(stds);
-		//		if (abs(result - save) > 5) {
-
-		//			for (int k = i; k > i - tSize * 2 && k >= startY; k--) {
-		//				images[5].at<cv::Vec3b>(k, j)[0] = 0;
-		//				images[5].at<cv::Vec3b>(k, j)[1] = 0;
-		//				images[5].at<cv::Vec3b>(k, j)[2] = 0;
-		//			}
-		//			points.push_back({ j  , i - tSize * 2 });
-		//			break;
-		//		}
-		//		else {
-		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
-		//			save = (result + save) / 2;
-		//		}
-		//	}
-		//}
-		//// Parcours de bas en haut
-		//for (int j = startX; j <= endX; j++) {
-		//	double save = 0.0;
-		//	std::vector<double> stds;
-		//	for (int k = 0; k < tSize; k++) {
-		//		stds.push_back(hsvImage.at<cv::Vec3b>(startY + k, j)[2]);
-		//	}
-		//	save = Mean(stds);
-		//	for (int i = startY; i <= endY; i++) {
-		//		stds.clear();
-		//		for (int k = i; k < i + tSize && k <= endY; k++) {
-		//			stds.push_back(hsvImage.at<cv::Vec3b>(k, j)[2]);
-		//		}
-		//		double result = Mean(stds);
-		//		if (abs(result - save) > 5) {
-
-		//			for (int k = i; k < i + tSize * 2 && k <= endY; k++) {
-		//				images[5].at<cv::Vec3b>(k, j)[0] = 0;
-		//				images[5].at<cv::Vec3b>(k, j)[1] = 0;
-		//				images[5].at<cv::Vec3b>(k, j)[2] = 0;
-		//			}
-		//			points.push_back({ j  , i + tSize * 2 });
-		//			break;
-		//		}
-		//		else {
-		//			images[5].at<cv::Vec3b>(i, j)[0] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[1] = 0;
-		//			images[5].at<cv::Vec3b>(i, j)[2] = 0;
-		//			save = (result + save) / 2;
-		//		}
-		//	}
-		//}
-
-		cv::Mat grayscaleImage;
-		cv::cvtColor(images[5], grayscaleImage, cv::COLOR_BGR2GRAY); // Convertir en niveaux de gris
-
-		std::vector<std::vector<cv::Point>> contours;
-		cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-		//std::sort(points.begin(), points.end(), [](const cv::Point& a, const cv::Point& b) {
-		//	if (a.x != b.x) return a.x < b.x;
-		//	return a.y < b.y;
-		//	});
-		cv::Mat mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
-		//std::vector<std::vector<cv::Point>> contours;
-		//contours.push_back(points);
-		cv::fillPoly(mask, contours, cv::Scalar(255));
-		cv::Mat result;
-		originalImage.copyTo(result, mask);
-
-		images[5] = result.clone();
-
+		// red
+		images[4] = images[0].clone();
+		cv::Scalar red_lower(0, 0, 0);
+		cv::Scalar red_upper(25, 255, 255);
+		ImageProcessing::ColorFiltering(images[4], red_lower, red_upper, cv::Scalar(255, 0, 0));
 
 		// Save the processed images with their respective labels
 		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };

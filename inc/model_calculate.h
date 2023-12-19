@@ -27,7 +27,7 @@ public:
 	static void GradientDescent(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
 		const std::vector<std::vector<double>>& target, const size_t type);
 
-	static void LogisticRegressionTrainning(
+	static void LogisticRegressionOneHotTrainning(
 		std::vector<std::vector<double>>& weights,
 		const std::vector<std::vector<double>>& trainingInputs,
 		const std::vector<std::vector<double>>& validationInputs,

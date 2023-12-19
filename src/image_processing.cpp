@@ -22,22 +22,66 @@ void ImageProcessing::Rotate(cv::Mat& image, double minDistr, double maxDistr)
 	image = rotatedImage;
 }
 
-void ImageProcessing::Blur(cv::Mat& image, double minDistr, double maxDistr)
+void ImageProcessing::Distort(cv::Mat& image)
 {
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	double sigma = distr(gen);
-	cv::GaussianBlur(image, image, cv::Size(0, 0), sigma);
+	std::uniform_real_distribution<> freqDistr(0.01, 0.015); // Fréquence des ondes
+	std::uniform_real_distribution<> ampDistr(5.0, 7.5);  // Amplitude des ondes
+
+	double frequency = freqDistr(gen);
+	double amplitude = ampDistr(gen);
+
+	cv::Mat dst(image.size(), image.type(), cv::Scalar(255, 255, 255));
+
+	for (int y = 0; y < image.rows; ++y) {
+		for (int x = 0; x < image.cols; ++x) {
+			int newY = y + static_cast<int>(amplitude * sin(x * frequency * 2 * 3.14));
+
+			newY = std::min(std::max(newY, 0), image.rows - 1);
+
+			dst.at<cv::Vec3b>(newY, x) = image.at<cv::Vec3b>(y, x);
+		}
+	}
+
+	image = dst;
 }
 
-void ImageProcessing::Contrast(cv::Mat& image, double minDistr, double maxDistr)
+void ImageProcessing::Flip(cv::Mat& image)
+{
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<int> distr(false, true);
+	int horizontal = distr(gen);
+	int flipCode = horizontal ? true : false;
+	cv::flip(image, image, flipCode);
+}
+
+void ImageProcessing::Shear(cv::Mat& image, double minDistr, double maxDistr)
 {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	double alpha = distr(gen);
-	image.convertTo(image, -1, alpha, 0);
+	double shearAmount = distr(gen);
+
+	// Calculer l'augmentation de la largeur due au cisaillement
+	double increasedWidth = image.cols + std::abs(shearAmount) * image.rows;
+
+	// Calculer le facteur d'échelle nécessaire
+	double scaleFactor = static_cast<double>(image.cols) / increasedWidth;
+
+	// Calculer le décalage pour centrer l'image
+	double offsetX = (image.cols - (scaleFactor * increasedWidth)) / 2.0;
+	double offsetY = (image.rows - (scaleFactor * image.rows)) / 2.0;
+
+	// Ajuster la matrice pour le cisaillement, la mise à l'échelle et le décalage
+	cv::Mat shearMatrix = (cv::Mat_<double>(2, 3) << scaleFactor, shearAmount * scaleFactor, offsetX, 0, scaleFactor, offsetY);
+
+	// Appliquer la transformation
+	cv::Mat dst;
+	cv::warpAffine(image, dst, shearMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
+
+	image = dst;
 }
 
 void ImageProcessing::Scale(cv::Mat& image, double minDistr, double maxDistr)
@@ -52,38 +96,29 @@ void ImageProcessing::Scale(cv::Mat& image, double minDistr, double maxDistr)
 	cv::warpAffine(image, image, zoomMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
 }
 
-void ImageProcessing::Illumination(cv::Mat& image, double minDistr, double maxDistr)
-{
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	double brightness = distr(gen);
-	image += cv::Scalar(brightness, brightness, brightness);
-}
-
-void ImageProcessing::Projective(cv::Mat& image, double minDistr, double maxDistr)
+void ImageProcessing::Projective(cv::Mat& image, float minDistr, float maxDistr)
 {
 	// Randomizer
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
-	double topLY = distr(gen);
-	double topRX = distr(gen);
-	double botLX = distr(gen);
-	double botRY = distr(gen);
-	double botRX = distr(gen);
+	std::uniform_real_distribution<float> distr(minDistr, maxDistr);
+	float topLY = distr(gen);
+	float topRX = distr(gen);
+	float botLX = distr(gen);
+	float botRY = distr(gen);
+	float botRX = distr(gen);
 	// Source points
 	std::vector<cv::Point2f> srcPoints;
 	srcPoints.push_back(cv::Point2f(0, 0));                           // Top-left corner
-	srcPoints.push_back(cv::Point2f(image.cols - 1, 0));              // Top-right corner
-	srcPoints.push_back(cv::Point2f(0, image.rows - 1));              // Bottom-left corner
-	srcPoints.push_back(cv::Point2f(image.cols - 1, image.rows - 1)); // Bottom-right corner
+	srcPoints.push_back(cv::Point2f(static_cast<float>(image.cols) - 1, 0));              // Top-right corner
+	srcPoints.push_back(cv::Point2f(0, static_cast<float>(image.rows) - 1));              // Bottom-left corner
+	srcPoints.push_back(cv::Point2f(static_cast<float>(image.cols) - 1, static_cast<float>(image.rows) - 1)); // Bottom-right corner
 	// Destination points
 	std::vector<cv::Point2f> dstPoints;
 	dstPoints.push_back(cv::Point2f(0, topLY));
-	dstPoints.push_back(cv::Point2f(image.cols - topRX, 0));
-	dstPoints.push_back(cv::Point2f(botLX, image.rows - 1));
-	dstPoints.push_back(cv::Point2f(image.cols - botRX, image.rows - botRY));
+	dstPoints.push_back(cv::Point2f(static_cast<float>(image.cols) - topRX, 0));
+	dstPoints.push_back(cv::Point2f(botLX, static_cast<float>(image.rows) - 1));
+	dstPoints.push_back(cv::Point2f(static_cast<float>(image.cols) - botRX, static_cast<float>(image.rows) - botRY));
 	// Get the Perspective Transform Matrix i.e. M
 	cv::Mat warpMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
 	// Apply the perspective transformation to the image
@@ -524,7 +559,7 @@ void ImageProcessing::CutLeaf(cv::Mat& image)
 		for (int j = 0; j < originalImage.cols; j++) {
 			cv::Vec3b& BGR = image.at<cv::Vec3b>(i, j);
 
-			double value = BGR[0];
+			uchar value = BGR[0];
 			if (BGR[2] < value) {
 				value = BGR[2];
 			}

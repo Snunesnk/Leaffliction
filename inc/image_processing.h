@@ -3,14 +3,16 @@
 
 #include <opencv2/opencv.hpp>
 
-class ImageProcessing {
+class ImageProcessing
+{
 public:
 	static void Rotate(cv::Mat& image, double minDistr, double maxDistr);
-	static void Blur(cv::Mat& image, double minDistr, double maxDistr);
-	static void Contrast(cv::Mat& image, double minDistr, double maxDistr);
+	static void Distort(cv::Mat& image);
+	static void Flip(cv::Mat& image);
+	static void Shear(cv::Mat& image, double minDistr, double maxDistr);
 	static void Scale(cv::Mat& image, double minDistr, double maxDistr);
-	static void Illumination(cv::Mat& image, double minDistr, double maxDistr);
-	static void Projective(cv::Mat& image, double minDistr, double maxDistr);
+	static void Projective(cv::Mat& image, float minDistr, float maxDistr);
+
 	static void ConvertToGrayScale(cv::Mat& image);
 	static void ColorFiltering(cv::Mat& image, cv::Scalar lowerBound, cv::Scalar upperBound, cv::Scalar color = { 255, 255, 255 });
 	static void EqualizeHistogram(cv::Mat& image);

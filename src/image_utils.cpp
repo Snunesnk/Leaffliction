@@ -162,9 +162,12 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 		int numRemaining = 50 - numComplete;
 		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
 		std::cout << "\033[A";
-
 	}
-	std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
+	std::cout << "\n\r\033[K";
+	std::cout << "\033[A\r\033[K";
+	std::cout << "\033[A\r\033[K";
+	std::cout << "\033[A\r\033[K";
+	//std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 }
 
 void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destination, int generation)
@@ -188,15 +191,15 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 		}
 		// Apply various image processing operations to different copies of the image
 		ImageProcessing::Rotate(images[0], 5.0, 45.0);
-		ImageProcessing::Blur(images[1], 1.5, 2.0);
-		ImageProcessing::Contrast(images[2], 1.5, 2.0);
-		ImageProcessing::Scale(images[3], 1.25, 1.5);
-		ImageProcessing::Illumination(images[4], 30, 40);
+		ImageProcessing::Distort(images[1]);
+		ImageProcessing::Flip(images[2]);
+		ImageProcessing::Shear(images[3], 0.2, 0.3);
+		ImageProcessing::Scale(images[4], 0.5, 0.9);
 		ImageProcessing::Projective(images[5], 30, 40);
 
 		// Create a mosaic image from the processed images
-		std::vector<std::string> augmentations = { "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" };
-		ImageUtils::SaveImages(destination + names[i], images, augmentations);
+		std::vector<std::string> labels = { "Rotate", "Distort", "Flip", "Shear", "Scale", "Projective" };
+		ImageUtils::SaveImages(destination + names[i], images, labels);
 
 		// Progression
 		int progress = (i + 1) * 100 / names.size();
@@ -205,5 +208,9 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
 		std::cout << "\033[A";
 	}
-	std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
+	std::cout << "\n\r\033[K";
+	std::cout << "\033[A\r\033[K";
+	std::cout << "\033[A\r\033[K";
+	std::cout << "\033[A\r\033[K";
+	//std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 }

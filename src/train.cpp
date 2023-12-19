@@ -295,10 +295,10 @@ int main(int argc, char* argv[])
 		//	|--- Grape_spot
 		//	|    '--- 1075 files
 		//	'--- 0 files
-		generation = 200;
+		generation = 1500;
 
 #endif
-		auto step = 1; // 0: create images and data. 1: only create data.
+		auto step = 0; // 0: create images and data. 1: only create data.
 		std::vector<DataInfo> dataBase;
 
 		bool checker = false;

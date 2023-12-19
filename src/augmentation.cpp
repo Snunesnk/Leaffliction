@@ -16,14 +16,14 @@ void display(const std::string& source, std::string& destination) {
 	}
 	// Apply various image processing operations to different copies of the image
 	ImageProcessing::Rotate(images[1], 5.0, 45.0);
-	ImageProcessing::Blur(images[2], 1.5, 2.0);
-	ImageProcessing::Contrast(images[3], 1.5, 2.0);
-	ImageProcessing::Scale(images[4], 1.25, 1.5);
-	ImageProcessing::Illumination(images[5], 30, 40);
+	ImageProcessing::Distort(images[2]);
+	ImageProcessing::Flip(images[3]);
+	ImageProcessing::Shear(images[4], 0.2, 0.3);
+	ImageProcessing::Scale(images[5], 0.5, 0.9);
 	ImageProcessing::Projective(images[6], 30, 40);
 
 	// Create a mosaic image from the processed images
-	std::vector<std::string> labels = { "Original", "Rotate", "Blur", "Contrast", "Scale", "Illumination", "Projective" };
+	std::vector<std::string> labels = { "Original", "Rotate", "Distort", "Flip", "Shear", "Scale", "Projective" };
 	ImageUtils::ShowMosaic(images, "Transformation", labels);
 	cv::waitKey(0);
 }
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 		// Grape_healthy       422 files
 		// Grape_spot          1075 files
 		source = "images/Grape_spot";
-		destination = "images/Grape_spot";
+		destination = "images/test";
 		generation = 1640 - 1075;
 #endif
 		if (source.back() != '/') {

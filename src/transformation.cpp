@@ -14,14 +14,17 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 	for (int y = 0; y < hsvImage.rows; ++y) {
 		for (int x = 0; x < hsvImage.cols; ++x) {
 			cv::Vec3b hsvPixel = hsvImage.at<cv::Vec3b>(y, x);
+
 			// Extract values from each channel
 			int hue = static_cast<int>(hsvPixel[0] * 1.417); // adapt openCV hue : 180.0 * 1.417 = 255.06
 			int saturation = hsvPixel[1];
 			int value = hsvPixel[2];
+
 			// Increment the intensity count for each channel
 			intensityCounts[0][hue]++;
 			intensityCounts[1][saturation]++;
 			intensityCounts[2][value]++;
+
 			// Extract values from Blue, Green and Red channels (BGR)
 			int blue = image.at<cv::Vec3b>(y, x)[0];
 			int green = image.at<cv::Vec3b>(y, x)[1];
@@ -32,6 +35,7 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 		}
 	}
 	std::vector<std::vector<std::pair<int, double>>> intensityProportions(channelCount);
+
 	// Calculate proportions for each channel
 	for (int i = 0; i < channelCount; ++i) {
 		for (int j = 0; j < intensityRanges; ++j) {
@@ -44,6 +48,7 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 
 // Function to create and execute the Python script for generating the graph
 void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>& proportions) {
+
 	// Create and open a text file for writing
 	std::ofstream pythonScript("script.py");
 	if (!pythonScript.is_open()) {
@@ -51,10 +56,12 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	}
 	std::vector<std::string> channels = { "hue", "saturation", "value", "blue", "green", "red" };
 	std::vector<std::string> colors = { "purple", "cyan", "orange", "blue", "green", "red" };
+
 	// Python script
 	pythonScript << "import matplotlib.pyplot as plt\n";
 	pythonScript << "import numpy as np\n";
 	pythonScript << "plt.figure(figsize=(9, 7))\n";
+
 	// Iterate through the proportions and add data for each channel
 	for (int i = 2; i < 3; ++i) {
 		pythonScript << "data" << i << " = np.array([";
@@ -80,66 +87,35 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 
 
 void display(const std::string& source) {
+
 	// Load an image from the specified file path
 	cv::Mat originalImage = cv::imread(source, cv::IMREAD_COLOR);
 	if (originalImage.empty()) {
 		throw std::runtime_error("Unable to load the image. " + source);
 	}
-	//ImageProcessing::EqualizeHistogramSaturation(originalImage);
 	std::vector<cv::Mat> images;
+
 	// Create a vector to store multiple copies of the loaded image
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < 7; i++) {
 		images.push_back(originalImage.clone());
 	}
 
-	// Appliquer le filtre bilatéral
-	cv::bilateralFilter(originalImage, images[0],
-		9,                   // Diamètre de chaque pixel voisinage
-		75,                  // Filtre sigma dans l'espace de couleur
-		75,				     // Filtre sigma dans l'espace coordonné
-		cv::BORDER_DEFAULT); // Type de bordure utilisé
-
-	// Appliquer la réduction de bruit
-	cv::fastNlMeansDenoisingColored(images[0], images[0],
-		10,  // force de débruitage pour la luminance (plus élevé signifie plus de débruitage mais moins de détails)
-		10,  // force de débruitage pour la chrominance (couleur)
-		7,   // taille du bloc pour calculer la pondération des pixels
-		21); // fenêtre de recherche pour trouver les pixels similaires
-
-	for (int i = 0; i < originalImage.rows; i++) {
-		for (int j = 0; j < originalImage.cols; j++) {
-			cv::Vec3b& BGR = images[0].at<cv::Vec3b>(i, j);
-
-			if (BGR[2] > BGR[1] && BGR[2] > BGR[0]) {
-				if (abs(BGR[1] - BGR[0]) < 15) {
-					BGR[2] = 0;
-					BGR[1] = 0;
-					BGR[0] = 0;
-				}
-			}
-
-			if (BGR[0] + BGR[1] + BGR[2] < 25) {
-				BGR[2] = 0;
-				BGR[1] = 0;
-				BGR[0] = 0;
-			}
-
-			if (BGR[0] + BGR[1] + BGR[2] > 700) {
-				BGR[2] = 0;
-				BGR[1] = 0;
-				BGR[0] = 0;
-			}
-		}
-	}
-
+	// Apply transformations
+	ImageProcessing::ConvertToGray(images[1]);
+	ImageProcessing::BinarizeImage(images[2]);
+	ImageProcessing::ExtractYChannel(images[3]);
+	ImageProcessing::ApplyCannyEdgeDetection(images[4]);
+	ImageProcessing::ApplyGaussianBlur(images[5], 5);
+	ImageProcessing::ApplyContrastEnhancement(images[6], 2.0);
 
 	// Save the processed images with their respective labels
 	std::vector<std::string> labels = { "Original", "T1", "T2", "T3", "T4", "T5", "T6" };
 	ImageUtils::ShowMosaic(images, "Transformation", labels);
 	cv::waitKey(1);
+
 	// Calculate intensity proportions and generate the graph
-	//std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(images[0]);
-	//generateGraphScript(proportions);
+	std::vector<std::vector<std::pair<int, double>>> proportions = calculateProportionInIntensityRanges(images[0]);
+	generateGraphScript(proportions);
 	cv::waitKey(0);
 }
 
@@ -193,9 +169,7 @@ int main(int argc, char* argv[]) {
 		source = "images/Grape_Black_rot/";
 		destination = "images/test";
 #endif
-		if (destination.back() != '/') {
-			destination += "/";
-		}
+
 		// Check if source is a .JPG file
 		if (source.length() > 4 && source.substr(source.length() - 4) == ".JPG") {
 			display(source);
@@ -203,6 +177,9 @@ int main(int argc, char* argv[]) {
 		else {
 			if (source.back() != '/') {
 				source += "/";
+			}
+			if (destination.back() != '/') {
+				destination += "/";
 			}
 			ImageUtils::SaveTFromToDirectory(source, destination, generation);
 		}

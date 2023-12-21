@@ -7,130 +7,237 @@
 #include "model_utils.h"
 #include "model_calculate.h"
 
-std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformation)
+#define M_PI 3.14159265358979323846264338327950288419716939937510582
+
+// Fonction personnalisée pour calculer la médiane d'une image
+double medianMat(const cv::Mat& src)
 {
-	if (transformation == 1) {
-		return{};
-		// Aspect ratio
-		std::vector<cv::Point> rectanglePoints = ImageProcessing::getMinimumBoundingRectanglePoints(image);
-		return { ImageProcessing::calculateAspectRatioOfObjects(image) };
-	}
-	else if (transformation == 2) {
-
-		// Means colors
-		std::vector<std::vector<double>> RGBValues(3);
-		cv::Mat HSVImage;
-		cv::cvtColor(image, HSVImage, cv::COLOR_BGR2HSV);
-		std::vector<std::vector<double>> HSVValues(3);
-
-		for (int i = 0; i < image.rows; i++) {
-			for (int j = 0; j < image.cols; j++) {
-				cv::Vec3b& RGBpixel = image.at<cv::Vec3b>(i, j);
-				if (RGBpixel[0] <= 250 || RGBpixel[1] <= 250 || RGBpixel[2] <= 250) {
-					RGBValues[0].push_back(RGBpixel[0]);
-					RGBValues[1].push_back(RGBpixel[1]);
-					RGBValues[2].push_back(RGBpixel[2]);
-					cv::Vec3b& HSVpixel = HSVImage.at<cv::Vec3b>(i, j);
-					HSVValues[0].push_back(HSVpixel[0]);
-					HSVValues[1].push_back(HSVpixel[1]);
-					HSVValues[2].push_back(HSVpixel[2]);
-				}
-			}
-		}
-		std::vector<double> RGBMeans(3);
-		RGBMeans[0] = ImageUtils::Mean(RGBValues[0]);
-		RGBMeans[1] = ImageUtils::Mean(RGBValues[1]);
-		RGBMeans[2] = ImageUtils::Mean(RGBValues[2]);
-
-		std::vector<double> RGBStandardDeviation(3);
-		RGBStandardDeviation[0] = ImageUtils::Mean(RGBValues[0]);
-		RGBStandardDeviation[1] = ImageUtils::Mean(RGBValues[1]);
-		RGBStandardDeviation[2] = ImageUtils::Mean(RGBValues[2]);
-
-		double RGMeansDiff = RGBMeans[1] - RGBMeans[2];
-
-		std::vector<double> HSVMeans(3);
-		HSVMeans[0] = ImageUtils::Mean(HSVValues[0]);
-		HSVMeans[1] = ImageUtils::Mean(HSVValues[1]);
-		HSVMeans[2] = ImageUtils::Mean(HSVValues[2]);
-
-		std::vector<double> numerics = {
-			RGBMeans[0], RGBMeans[1] ,RGBMeans[2], RGMeansDiff,
-			RGBStandardDeviation[0], RGBStandardDeviation[1], RGBStandardDeviation[2],
-			HSVMeans[0], HSVMeans[1], HSVMeans[2],
-		};
-
-		// La moyenne des valeurs de pixels des canaux (rouge, vert, bleu) pour chaque bande de fréquence de Fourier 
-		cv::Mat bgrChannels[3];
-		cv::split(image, bgrChannels);
-
-		// Calculer la 2D DFT pour chaque canal
-		for (int channel = 0; channel < 3; channel++) {
-			cv::Mat grayChannel;
-			bgrChannels[channel].convertTo(grayChannel, CV_32F); // Conversion en float
-			cv::Mat complexChannel;
-			cv::dft(grayChannel, complexChannel, cv::DFT_COMPLEX_OUTPUT);
-
-			// Séparer les parties réelles et imaginaires
-			std::vector<cv::Mat> channels(2);
-			cv::split(complexChannel, channels);
-			cv::Mat realPart = channels[0];
-
-			// Calculer la moyenne des valeurs de la partie réelle pour chaque bande de fréquence
-			int numBands = complexChannel.cols;
-			std::vector<double> DFTMeans(numBands, 0.0);
-
-			for (int i = 0; i < numBands; i += 25) {
-				cv::Mat band = realPart.col(i);
-				cv::Scalar mean = cv::mean(band);
-				DFTMeans[i] = mean[0];
-				numerics.push_back(DFTMeans[i]);
-			}
-		}
-
-		return numerics;
-	}
-	else if (transformation <= 5) {
-		return{};
-		// Pct selected hue 
-		double mean = 0;
-		double count = 0;
-		for (int i = 0; i < image.rows; i++) {
-			for (int j = 0; j < image.cols; j++) {
-				cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-				if (pixel[0] >= 250 && pixel[1] <= 5 && pixel[2] <= 5) {
-					count++;
-				}
-				else if (pixel[0] >= 5 || pixel[1] >= 5 || pixel[2] >= 5) {
-					mean++;
-					count++;
-				}
-			}
-		}
-		if (count)
-			return { mean / count };
-		else
-			return { 0 };
+	std::vector<uchar> array;
+	if (src.isContinuous()) {
+		array.assign(src.datastart, src.dataend);
 	}
 	else {
-		//// Means HSV
-		//cv::Mat hsvImage;
-		//cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-		//std::vector<double> meansHSV(2);
-		//double countHSV = 0;
-		//for (int i = 0; i < hsvImage.rows; i++) {
-		//	for (int j = 0; j < hsvImage.cols; j++) {
-		//		cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-		//		if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-		//			cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-		//			meansHSV[0] += hsvpixel[0];
-		//			meansHSV[1] += hsvpixel[1];
-		//			meansHSV[2] += hsvpixel[2];
-		//			countHSV++;
-		//		}
-		//	}
-		//}
-		//return { meansHSV[0] / countHSV, meansHSV[1] / countHSV, meansHSV[2] / countHSV };
+		for (int i = 0; i < src.rows; ++i) {
+			array.insert(array.end(), src.ptr<uchar>(i), src.ptr<uchar>(i) + src.cols);
+		}
+	}
+	std::nth_element(array.begin(), array.begin() + array.size() / 2, array.end());
+	return array[array.size() / 2];
+}
+
+// Function to calculate the Gray Level Co-occurrence Matrix (GLCM)
+cv::Mat calculateGLCM(const cv::Mat& img, int dx, int dy, int numLevels)
+{
+	cv::Mat glcm = cv::Mat::zeros(numLevels, numLevels, CV_32F);
+
+	for (int y = 0; y < img.rows; y++) {
+		for (int x = 0; x < img.cols; x++) {
+			int rowValue = img.at<uchar>(y, x);
+			int colValue = 0;
+
+			if ((y + dy) >= 0 && (y + dy) < img.rows && (x + dx) >= 0 && (x + dx) < img.cols) {
+				colValue = img.at<uchar>(y + dy, x + dx);
+			}
+
+			// Check if rowValue and colValue are within the bounds of the GLCM matrix
+			if (rowValue >= 0 && rowValue < numLevels && colValue >= 0 && colValue < numLevels) {
+				glcm.at<float>(rowValue, colValue) += 1.0f;
+			}
+		}
+	}
+
+	glcm = glcm / cv::sum(glcm)[0];
+	return glcm;
+}
+
+
+
+// Fonction pour extraire des caractéristiques à partir de la GLCM
+std::vector<double> extractGLCMFeatures(const cv::Mat& glcm)
+{
+	double contrast = 0.0;
+	double dissimilarity = 0.0;
+	double homogeneity = 0.0;
+	double energy = 0.0;
+	double correlation = 0.0;
+	double mean_i = 0.0;
+	double mean_j = 0.0;
+	double std_i = 0.0;
+	double std_j = 0.0;
+
+	// Calculer les moyennes et les écarts-types
+	for (int i = 0; i < glcm.rows; i++) {
+		for (int j = 0; j < glcm.cols; j++) {
+			mean_i += i * glcm.at<float>(i, j);
+			mean_j += j * glcm.at<float>(i, j);
+		}
+	}
+
+	for (int i = 0; i < glcm.rows; i++) {
+		for (int j = 0; j < glcm.cols; j++) {
+			std_i += glcm.at<float>(i, j) * (i - mean_i) * (i - mean_i);
+			std_j += glcm.at<float>(i, j) * (j - mean_j) * (j - mean_j);
+		}
+	}
+
+	std_i = sqrt(std_i);
+	std_j = sqrt(std_j);
+
+	// Calculer les caractéristiques
+	for (int i = 0; i < glcm.rows; i++) {
+		for (int j = 0; j < glcm.cols; j++) {
+			double p = glcm.at<float>(i, j);
+			contrast += p * (i - j) * (i - j);
+			dissimilarity += p * abs(i - j);
+			homogeneity += p / (1.0 + abs(i - j));
+			energy += p * p;
+			if (std_i != 0.0 && std_j != 0.0) {
+				correlation += (i * j * p - mean_i * mean_j) / (std_i * std_j);
+			}
+		}
+	}
+
+	return { contrast, dissimilarity, homogeneity, energy, correlation };
+}
+
+// Fonction pour extraire toutes les caractéristiques d'une image en niveaux de gris
+std::vector<double> extractFeaturesFromImageT1(const cv::Mat& image)
+{
+	std::vector<double> features;
+
+	cv::Mat grayImage;
+	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
+
+	//cv::Mat grayscaleImage = grayImage.clone();
+	//grayscaleImage.convertTo(grayscaleImage, CV_8U);
+	//cv::threshold(grayscaleImage, grayscaleImage, 1, 255, cv::THRESH_BINARY);
+	//double area = cv::countNonZero(grayscaleImage);
+
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(grayImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+	double maxPerimeter = 0.0;
+	for (const auto& contour : contours) {
+		double perimeter = cv::arcLength(contour, true);
+		if (perimeter > maxPerimeter) {
+			maxPerimeter = perimeter;
+		}
+	}
+
+	//features.push_back(area);
+	features.push_back(maxPerimeter);
+	features.push_back(ImageProcessing::calculateAspectRatioOfObjects(image));
+
+	//// Nombre de composantes connectées
+	//cv::Mat labeledImage;
+	//int numConnectedComponents = cv::connectedComponents(grayImage, labeledImage, 8, CV_32S);
+	//cv::Moments moments = cv::moments(contours[0]);
+	//double huMoments[7];
+	//cv::HuMoments(moments, huMoments);
+	//features.push_back(numConnectedComponents);
+	//for (int i = 0; i < 7; ++i) {
+	//	features.push_back(huMoments[i]);
+	//}
+
+	// Statistiques de luminance
+	cv::Scalar mean, stddev;
+	cv::meanStdDev(image, mean, stddev);
+	double meanLuminance = mean.val[0];
+	double medianLuminance = medianMat(image);
+	double varianceLuminance = stddev.val[0] * stddev.val[0];
+	double stdDevLuminance = stddev.val[0];
+	features.push_back(meanLuminance);
+	features.push_back(medianLuminance);
+	features.push_back(varianceLuminance);
+	features.push_back(stdDevLuminance);
+
+	//// Histogramme des niveaux de luminance
+	//std::vector<int> histogram(256, 0);
+	//for (int y = 0; y < image.rows; ++y) {
+	//	for (int x = 0; x < image.cols; ++x) {
+	//		int pixelValue = static_cast<int>(image.at<uchar>(y, x));
+	//		histogram[pixelValue]++;
+	//	}
+	//}
+
+	//for (int i = 0; i < 256; i += 25) {
+	//	features.push_back(static_cast<double>(histogram[i]));
+	//}
+
+	//// Caractéristiques de texture (GLCM)
+	//cv::Mat gray;
+	//cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+	//cv::Mat yChannelNormalized;
+	//cv::normalize(gray, yChannelNormalized, 0, 255, cv::NORM_MINMAX, CV_8U);
+	//int numLevels = 8; // Ajustez selon vos besoins
+	//cv::Mat glcm = calculateGLCM(yChannelNormalized, 1, 1, numLevels); // Calculer la GLCM
+	//std::vector<double> glcmFeatures = extractGLCMFeatures(glcm); // Extraire des caractéristiques de la GLCM
+	//features.insert(features.end(), glcmFeatures.begin(), glcmFeatures.end()); // Ajouter les caractéristiques de GLCM aux caractéristiques
+
+	return features;
+}
+
+// Fonction pour extraire toutes les caractéristiques d'une image binaire
+std::vector<double> extractFeaturesFromImageT2(const cv::Mat& binaryImage)
+{
+	std::vector<double> features;
+
+	return features;
+}
+
+
+// Fonction pour extraire toutes les caractéristiques d'une image du canal Y
+std::vector<double> extractFeaturesFromImageT3(const cv::Mat& yChannelImage)
+{
+	std::vector<double> features;
+
+	return features;
+}
+
+// Fonction pour extraire toutes les caractéristiques d'une image de contours
+std::vector<double> extractFeaturesFromImageT4(const cv::Mat& contourImage)
+{
+	std::vector<double> features;
+
+	return features;
+}
+
+// Fonction pour extraire toutes les caractéristiques d'une image après amélioration du contraste
+std::vector<double> extractFeaturesFromImageT5(const cv::Mat& enhancedImage)
+{
+	std::vector<double> features;
+
+	return features;
+}
+
+// Fonction pour extraire toutes les caractéristiques d'une image après flou gaussien
+std::vector<double> extractFeaturesFromImageT6(const cv::Mat& blurredImage)
+{
+	std::vector<double> features;
+
+	return features;
+}
+
+std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformation)
+{
+
+	if (transformation == 1) {
+		return extractFeaturesFromImageT1(image);
+	}
+	else if (transformation == 2) {
+		//return extractFeaturesFromImageT2(image);
+	}
+	else if (transformation == 3) {
+		//return extractFeaturesFromImageT3(image);
+	}
+	else if (transformation == 4) {
+		//return extractFeaturesFromImageT4(image);		
+	}
+	else if (transformation == 5) {
+		//return extractFeaturesFromImageT5(image);
+	}
+	else if (transformation == 6) {	
+		//return extractFeaturesFromImageT6(image);
 	}
 	return {  };
 }
@@ -239,7 +346,7 @@ void CreateData(std::string source, std::vector<DataInfo>& dataBase, int generat
 		}
 	}
 	std::cout << std::endl;
-	ModelUtils::SaveDataFile("data.csv", dataLines);
+	//ModelUtils::SaveDataFile("data.csv", dataLines);
 }
 
 int main(int argc, char* argv[])
@@ -277,25 +384,15 @@ int main(int argc, char* argv[])
 		}
 
 #ifdef _MSC_VER
-		//images
-		//	|--- Apple_Black_rot
-		//	|    '--- 620 files
-		//	|--- Apple_healthy
-		//	|    '--- 1640 files
-		//	|--- Apple_rust
-		//	|    '--- 275 files
-		//	|--- Apple_scab
-		//	|    '--- 629 files
-		//	|--- Grape_Black_rot
-		//	|    '--- 1178 files
-		//	|--- Grape_Esca
-		//	|    '--- 1382 files
-		//	|--- Grape_healthy
-		//	|    '--- 422 files
-		//	|--- Grape_spot
-		//	|    '--- 1075 files
-		//	'--- 0 files
-		generation = 1500;
+		// Apple_Black_rot     620 files
+		// Apple_healthy       1640 files
+		// Apple_rust          275 files
+		// Apple_scab          629 files
+		// Grape_Black_rot     1178 files
+		// Grape_Esca          1382 files
+		// Grape_healthy       422 files
+		// Grape_spot          1075 files
+		generation = 150; ///focus sur le nombre de coin
 
 #endif
 		auto step = 0; // 0: create images and data. 1: only create data.

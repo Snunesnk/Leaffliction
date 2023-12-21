@@ -109,9 +109,9 @@ void ImageProcessing::Projective(cv::Mat& image, float minDistr, float maxDistr)
 	float botRX = distr(gen);
 	// Source points
 	std::vector<cv::Point2f> srcPoints;
-	srcPoints.push_back(cv::Point2f(0, 0));                           // Top-left corner
-	srcPoints.push_back(cv::Point2f(static_cast<float>(image.cols) - 1, 0));              // Top-right corner
-	srcPoints.push_back(cv::Point2f(0, static_cast<float>(image.rows) - 1));              // Bottom-left corner
+	srcPoints.push_back(cv::Point2f(0, 0)); // Top-left corner
+	srcPoints.push_back(cv::Point2f(static_cast<float>(image.cols) - 1, 0)); // Top-right corner
+	srcPoints.push_back(cv::Point2f(0, static_cast<float>(image.rows) - 1)); // Bottom-left corner
 	srcPoints.push_back(cv::Point2f(static_cast<float>(image.cols) - 1, static_cast<float>(image.rows) - 1)); // Bottom-right corner
 	// Destination points
 	std::vector<cv::Point2f> dstPoints;
@@ -125,58 +125,67 @@ void ImageProcessing::Projective(cv::Mat& image, float minDistr, float maxDistr)
 	cv::warpPerspective(image, image, warpMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
 }
 
-void ImageProcessing::ConvertToGrayScale(cv::Mat& image)
+
+void ImageProcessing::ConvertToGray(cv::Mat& inputImage)
 {
-	// Créez une copie de l'image d'origine en couleur
-	cv::Mat originalImage = image.clone();
+	cv::cvtColor(inputImage, inputImage, cv::COLOR_BGR2GRAY);
+}
 
-	// Convertissez l'image en niveaux de gris
-	cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+void ImageProcessing::BinarizeImage(cv::Mat& inputImage)
+{
+	cv::Mat grayImage;
+	ImageProcessing::ConvertToGray(inputImage);
+	cv::threshold(inputImage, inputImage, 128, 255, cv::THRESH_BINARY);
+}
 
-	// Copiez le canal de luminance (niveaux de gris) dans les canaux R, G et B de l'image en couleur d'origine
-	cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
-	image.copyTo(originalImage);
+void ImageProcessing::ExtractYChannel(cv::Mat& inputImage)
+{
+	if (inputImage.channels() == 3) {
+		cv::Mat yChannel;
+		cv::cvtColor(inputImage, yChannel, cv::COLOR_BGR2YCrCb);
+		std::vector<cv::Mat> channels;
+		cv::split(yChannel, channels);
+		inputImage = channels[0];
+	}
+}
 
+void ImageProcessing::ApplyCannyEdgeDetection(cv::Mat& inputImage)
+{
+	cv::Mat grayImage;
+	ImageProcessing::ConvertToGray(inputImage);
+	cv::Canny(inputImage, inputImage, 100, 200);
+}
+
+void ImageProcessing::ApplyGaussianBlur(cv::Mat& inputImage, int kernelSize)
+{
+	cv::GaussianBlur(inputImage, inputImage, cv::Size(kernelSize, kernelSize), 0);
+}
+
+void ImageProcessing::ApplyContrastEnhancement(cv::Mat& inputImage, double factor)
+{
+	inputImage.convertTo(inputImage, -1, factor, 0);
 }
 
 void ImageProcessing::ColorFiltering(cv::Mat& image, cv::Scalar lowerBound, cv::Scalar upperBound, cv::Scalar color)
 {
-	// Convert the image to the HSV color space
 	cv::Mat hsvImage;
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-
-	// Create a mask for the object color
 	cv::Mat objectMask;
 	cv::inRange(hsvImage, lowerBound, upperBound, objectMask);
-
-	// Create a mask for the black background
 	cv::Mat bgMask;
 	cv::inRange(hsvImage, cv::Scalar(0, 0, 0), cv::Scalar(180, 255, 1), bgMask);
-
-	// Invert the object mask
 	cv::Mat invertedObjectMask;
 	cv::bitwise_not(objectMask, invertedObjectMask);
-
-	// Exclude the black background from the inverted object mask
 	cv::Mat maskToChange;
 	cv::bitwise_and(invertedObjectMask, ~bgMask, maskToChange);
-
-	// Set the color of the areas not in the specified color range while keeping the black background
 	image.setTo(color, maskToChange);
 }
 
 void ImageProcessing::EqualizeHistogram(cv::Mat& image)
 {
-	// Créez une copie de l'image d'origine en couleur
 	cv::Mat originalImage = image.clone();
-
-	// Convertissez l'image en niveaux de gris
 	cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-
-	// Égalisez l'histogramme en niveaux de gris
 	cv::equalizeHist(image, image);
-
-	// Copiez le canal de luminance égalisé dans les canaux R, G et B de l'image en couleur d'origine
 	cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
 	image.copyTo(originalImage, image);
 }
@@ -213,25 +222,6 @@ void ImageProcessing::EqualizeHistogramValue(cv::Mat& image)
 	cv::cvtColor(hsvImage, image, cv::COLOR_HSV2BGR);
 }
 
-void ImageProcessing::SimpleBinarization(cv::Mat& inputOutputImage, int threshold)
-{
-	// Créez une copie de l'image d'origine en couleur
-	cv::Mat originalImage = inputOutputImage.clone();
-
-	// Convertissez l'image en niveaux de gris si ce n'est pas déjà fait
-	if (inputOutputImage.channels() > 1) {
-		cv::cvtColor(inputOutputImage, inputOutputImage, cv::COLOR_BGR2GRAY);
-	}
-
-	// Appliquez la binarisation en niveaux de gris
-	cv::threshold(inputOutputImage, inputOutputImage, threshold, 255, cv::THRESH_BINARY);
-
-	// Copiez le canal de luminance (niveaux de gris) binarisé dans les canaux R, G et B de l'image en couleur d'origine
-	cv::cvtColor(inputOutputImage, inputOutputImage, cv::COLOR_GRAY2BGR);
-	inputOutputImage.copyTo(originalImage);
-
-}
-
 void ImageProcessing::DetectORBKeyPoints(cv::Mat& image)
 {
 	// Créer un détecteur ORB
@@ -241,212 +231,39 @@ void ImageProcessing::DetectORBKeyPoints(cv::Mat& image)
 	std::vector<cv::KeyPoint> keypoints;
 	orb->detect(image, keypoints);
 
-	// Créer un masque vide de la même taille que l'image avec 3 canaux
-	//cv::Mat mask(image.size(), image.type());
-	//mask.setTo(cv::Scalar(255, 255, 255));
-
-	// Dessiner les keypoints en bleu sur le masque
 	for (const cv::KeyPoint& kp : keypoints) {
 		cv::Point2f pt = kp.pt;
-		cv::circle(image, pt, 3, cv::Scalar(255, 0, 0), -1); // Dessiner un petit cercle bleu
+		cv::circle(image, pt, 3, cv::Scalar(255, 0, 0), -1);
 	}
 }
 
-void ImageProcessing::ExtractHue(cv::Mat& image, double lower, double upper)
+double ImageProcessing::calculateAspectRatioOfObjects(cv::Mat image)
 {
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-	for (int i = 0; i < hsvImage.rows; i++) {
-		for (int j = 0; j < hsvImage.cols; j++) {
-			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-				double hue = pixel[0];
-				if (hue >= lower && hue <= upper) {
-					pixel[0] = 0;
-					pixel[1] = 0;
-					pixel[2] = 0;
-				}
-			}
-		}
-	}
-}
-
-void ImageProcessing::ExtractSaturation(cv::Mat& image, double threshold)
-{
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-	for (int i = 0; i < hsvImage.rows; i++) {
-		for (int j = 0; j < hsvImage.cols; j++) {
-			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-				if (hsvpixel[1] <= threshold) {
-					pixel[0] = 0;
-					pixel[1] = 0;
-					pixel[2] = 0;
-				}
-			}
-		}
-	}
-}
-
-void ImageProcessing::ExtractValue(cv::Mat& image, double threshold)
-{
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-	for (int i = 0; i < hsvImage.rows; i++) {
-		for (int j = 0; j < hsvImage.cols; j++) {
-			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-				cv::Vec3b& hsvpixel = hsvImage.at<cv::Vec3b>(i, j);
-				if (hsvpixel[2] >= threshold) {
-					pixel[0] = 0;
-					pixel[1] = 0;
-					pixel[2] = 0;
-				}
-			}
-		}
-	}
-}
-
-void ImageProcessing::ExtractRedChannel(cv::Mat& image)
-{
-	// Extraire le canal Rouge (Red)
-	for (int i = 0; i < image.rows; i++) {
-		for (int j = 0; j < image.cols; j++) {
-			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-				pixel[0] = 0;
-				pixel[1] = 0;
-			}
-		}
-	}
-}
-
-void ImageProcessing::ExtractGreenChannel(cv::Mat& image)
-{
-	// Extraire le canal Vert (Green)
-	for (int i = 0; i < image.rows; i++) {
-		for (int j = 0; j < image.cols; j++) {
-			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-				pixel[0] = 0;
-				pixel[2] = 0;
-			}
-		}
-	}
-}
-
-void ImageProcessing::ExtractBlueChannel(cv::Mat& image)
-{
-	// Extraire le canal Bleu (Blue)
-	for (int i = 0; i < image.rows; i++) {
-		for (int j = 0; j < image.cols; j++) {
-			cv::Vec3b& pixel = image.at<cv::Vec3b>(i, j);
-			if (pixel[0] <= 250 || pixel[1] <= 250 || pixel[2] <= 250) {
-				pixel[1] = 0;
-				pixel[2] = 0;
-			}
-		}
-	}
-}
-
-void ImageProcessing::drawPolylinesAroundObject(cv::Mat image)
-{
-	// Create a mask for non-white pixels
 	cv::Mat mask;
-	cv::inRange(image, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), mask); // Exclude pure white
+	cv::inRange(image, cv::Scalar(1, 1, 1), cv::Scalar(255, 255, 255), mask);
 
-	// Find the contours in the mask
 	std::vector<std::vector<cv::Point>> contours;
 	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-	// Combine all points from all contours into one vector
 	std::vector<cv::Point> allPoints;
 	for (size_t i = 0; i < contours.size(); ++i) {
 		allPoints.insert(allPoints.end(), contours[i].begin(), contours[i].end());
 	}
 
 	if (!allPoints.empty()) {
-		// Calculate the convex hull of all points
-		std::vector<cv::Point> convexHullPoints;
-		cv::convexHull(allPoints, convexHullPoints);
-
-		// Draw the convex hull polygon
-		cv::polylines(image, convexHullPoints, true, cv::Scalar(255, 0, 255), 2);
-	}
-}
-
-void ImageProcessing::drawRectangleAroundObject(cv::Mat image)
-{
-	// Create a mask for non-white pixels
-	cv::Mat mask;
-	cv::inRange(image, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), mask); // Exclude pure white
-
-	// Find the contours in the mask
-	std::vector<std::vector<cv::Point>> contours;
-	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	// Combine all points from all contours into one vector
-	std::vector<cv::Point> allPoints;
-	for (size_t i = 0; i < contours.size(); ++i) {
-		allPoints.insert(allPoints.end(), contours[i].begin(), contours[i].end());
-	}
-
-	if (!allPoints.empty()) {
-		// Calculate the minimum bounding rectangle around all points
 		cv::RotatedRect minRect = cv::minAreaRect(allPoints);
 
-		// Get the four corner points of the rotated rectangle
-		cv::Point2f rectPoints[4];
-		minRect.points(rectPoints);
+		double width = minRect.size.width;
+		double height = minRect.size.height;
 
-		// Draw the rotated rectangle around all objects
-		for (int j = 0; j < 4; ++j) {
-			cv::line(image, rectPoints[j], rectPoints[(j + 1) % 4], cv::Scalar(255, 0, 255), 2);
-		}
+		double aspectRatio = (width > height) ? (width / height) : (height / width);
+
+		return aspectRatio;
 	}
+
+	return 0.0;
 }
-
-std::vector<cv::Point> ImageProcessing::getMinimumBoundingRectanglePoints(cv::Mat image)
-{
-	std::vector<cv::Point> rectPoints;
-
-	// Create a mask for non-white pixels
-	cv::Mat mask;
-	cv::inRange(image, cv::Scalar(0, 0, 1), cv::Scalar(180, 255, 255), mask); // Exclude pure black
-
-	// Find the contours in the mask
-	std::vector<std::vector<cv::Point>> contours;
-	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	// Combine all points from all contours into one vector
-	std::vector<cv::Point> allPoints;
-	for (size_t i = 0; i < contours.size(); ++i) {
-		allPoints.insert(allPoints.end(), contours[i].begin(), contours[i].end());
-	}
-
-	if (!allPoints.empty()) {
-		// Calculate the minimum bounding rectangle around all points
-		cv::RotatedRect minRect = cv::minAreaRect(allPoints);
-
-		// Get the four corner points of the rotated rectangle
-		cv::Point2f rectPointsArray[4];
-		minRect.points(rectPointsArray);
-
-		// Convert the points to std::vector<cv::Point>
-		for (int i = 0; i < 4; ++i) {
-			rectPoints.push_back(rectPointsArray[i]);
-		}
-	}
-
-	return rectPoints;
-}
-
 std::vector<cv::Point> ImageProcessing::GetConvexHullPoints(cv::Mat image)
 {
 	std::vector<cv::Point> convexHullPoints;
@@ -471,88 +288,55 @@ std::vector<cv::Point> ImageProcessing::GetConvexHullPoints(cv::Mat image)
 
 void ImageProcessing::CropImageWithPoints(cv::Mat& image, const std::vector<cv::Point>& points)
 {
-	// Créez un masque de la même taille que l'image
 	cv::Mat mask = cv::Mat::zeros(image.size(), CV_8UC1);
 
-	// Dessinez la région d'intérêt dans le masque
 	std::vector<std::vector<cv::Point>> contourVector = { points };
 	cv::drawContours(mask, contourVector, 0, cv::Scalar(255), cv::FILLED);
 
-	// Créez une nouvelle image où seul le ROI sera copié
 	cv::Mat croppedImage = cv::Mat::zeros(image.size(), image.type());
 	image.copyTo(croppedImage, mask);
 
-	// Remplacez l'image originale par la nouvelle image
 	image = croppedImage;
-}
-
-double ImageProcessing::calculateAspectRatioOfObjects(cv::Mat image)
-{
-	// Create a mask for non-white pixels
-	cv::Mat mask;
-	cv::inRange(image, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), mask); // Exclude pure white
-
-	// Find the contours in the mask
-	std::vector<std::vector<cv::Point>> contours;
-	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	// Combine all points from all contours into one vector
-	std::vector<cv::Point> allPoints;
-	for (size_t i = 0; i < contours.size(); ++i) {
-		allPoints.insert(allPoints.end(), contours[i].begin(), contours[i].end());
-	}
-
-	if (!allPoints.empty()) {
-		// Calculate the minimum bounding rectangle around all points
-		cv::RotatedRect minRect = cv::minAreaRect(allPoints);
-
-		// Get the width and height of the rotated rectangle
-		double width = minRect.size.width;
-		double height = minRect.size.height;
-
-		// Calculate the aspect ratio
-		double aspectRatio = (width > height) ? (width / height) : (height / width);
-
-		return aspectRatio;
-	}
-
-	// Return a default value if no objects are found
-	return 0.0; // You can choose any default value here
 }
 
 void ImageProcessing::CutLeaf(cv::Mat& image)
 {
 	cv::Mat originalImage = image.clone();
-
-
-	//for (int i = 0; i < originalImage.rows; i++) {
-	//	for (int j = 0; j < originalImage.cols; j++) {
-	//		cv::Vec3b& BGR = image.at<cv::Vec3b>(i, j);
-	//		double value = BGR[0];
-	//		if (BGR[2] < value) {
-	//			value = BGR[2];
-	//		}
-	//		BGR[1] = (BGR[1] < value ? 0 : BGR[1] - value);
-	//		BGR[0] = (BGR[0] < value ? 0 : BGR[0] - value);
-	//		BGR[2] = (BGR[2] < value ? 0 : BGR[2] - value);
-	//		if (BGR[2] >= BGR[1] - 2 && BGR[2] >= BGR[0] - 2 && abs(BGR[1] - BGR[0]) < 15) {
-	//			BGR[2] = 0;
-	//			BGR[1] = 0;
-	//			BGR[0] = 0;
-	//		}
-	//		if (BGR[0] >= BGR[1] - 2 && BGR[0] >= BGR[2] - 2 && abs(BGR[1] - BGR[2]) < 20) {
-	//			BGR[2] = 0;
-	//			BGR[1] = 0;
-	//			BGR[0] = 0;
-	//		}
-	//	}
-	//}
-	//std::vector<cv::Point> points = ImageProcessing::GetConvexHullPoints(image);
-	//image = originalImage.clone();
-	//ImageProcessing::CropImageWithPoints(image, points);
-
 	cv::Mat hsvImage;
+	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
+	for (int i = 0; i < originalImage.rows; i++) {
+		for (int j = 0; j < originalImage.cols; j++) {
+			cv::Vec3b& BGR = image.at<cv::Vec3b>(i, j);
+			double value = BGR[0];
+			if (BGR[2] < value) {
+				value = BGR[2];
+			}
+			BGR[1] = (BGR[1] < value ? 0 : BGR[1] - value);
+			BGR[0] = (BGR[0] < value ? 0 : BGR[0] - value);
+			BGR[2] = (BGR[2] < value ? 0 : BGR[2] - value);
+
+			if (hsvImage.at<cv::Vec3b>(i, j)[2] < 10) {
+				BGR[2] = 0;
+				BGR[1] = 0;
+				BGR[0] = 0;
+			}
+			if (BGR[2] >= BGR[1] - 5 && BGR[2] >= BGR[0] - 5 && abs(BGR[1] - BGR[0]) < 20) {
+				BGR[2] = 0;
+				BGR[1] = 0;
+				BGR[0] = 0;
+			}
+			if (BGR[0] >= BGR[1] - 5 && BGR[0] >= BGR[2] - 5 && abs(BGR[1] - BGR[2]) < 20) {
+				BGR[2] = 0;
+				BGR[1] = 0;
+				BGR[0] = 0;
+			}
+		}
+	}
+	std::vector<cv::Point> points = ImageProcessing::GetConvexHullPoints(image);
+	image = originalImage.clone();
+	ImageProcessing::CropImageWithPoints(image, points);
+
+	//cv::Mat hsvImage;
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);	
 
 	for (int i = 0; i < originalImage.rows; i++) {
@@ -574,21 +358,21 @@ void ImageProcessing::CutLeaf(cv::Mat& image)
 				BGR[1] = 0;
 				BGR[0] = 0;
 			}
-			if (BGR[2] >= BGR[1] - 5 && BGR[2] >= BGR[0] - 5 && abs(BGR[1] - BGR[0]) < 15) {
+			if (BGR[2] >= BGR[1] - 2 && BGR[2] >= BGR[0] - 2 && abs(BGR[1] - BGR[0]) < 15) {
 				BGR[2] = 0;
 				BGR[1] = 0;
 				BGR[0] = 0;
 			}
-			if (BGR[0] >= BGR[1] - 5 && BGR[0] >= BGR[2] - 5 && abs(BGR[1] - BGR[2]) < 20) {
+			if (BGR[0] >= BGR[1] - 2 && BGR[0] >= BGR[2] - 2 && abs(BGR[1] - BGR[2]) < 20) {
 				BGR[2] = 0;
 				BGR[1] = 0;
 				BGR[0] = 0;
 			}
 		}
 	}
-
+	
 	cv::Mat grayscaleImage;
-	cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY); // Convertir en niveaux de gris
+	cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY);
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 	cv::Mat mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
@@ -599,119 +383,46 @@ void ImageProcessing::CutLeaf(cv::Mat& image)
 	int erosionSize = 1;
 	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * erosionSize + 1, 2 * erosionSize + 1));
 	cv::erode(image, image, element, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
-	cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY); // Convertir en niveaux de gris
+	cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY);
 	cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 	mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 	cv::fillPoly(mask, contours, cv::Scalar(255));
 	originalImage.copyTo(image, mask);
 
-	////////////////////////
-	//cv::Mat hsvImage;
-	//cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV_FULL);
+	// Trouver le contour avec la plus grande aire
+	double maxArea = 0.0;
+	std::vector<cv::Point> maxContour;
+	for (const auto& contour : contours) {
+		double area = cv::contourArea(contour);
+		if (area > maxArea) {
+			maxArea = area;
+			maxContour = contour;
+		}
+	}
 
-	////cv::medianBlur(image, image, 11);
-	//for (int i = 0; i < image.rows; i++) {
-	//	for (int j = 0; j < image.cols; j++) {
-	//		cv::Vec3b& BGR = image.at<cv::Vec3b>(i, j);
+	// Calculer le rectangle englobant pour le contour maximal
+	cv::Rect boundingBox = cv::boundingRect(maxContour);
 
-	//		double min = BGR[0];
-	//		if (BGR[2] > min) {
-	//			min = BGR[2];
-	//		}
+	// Calculer le facteur de mise à l'échelle en conservant le rapport d'aspect
+	double scale = std::min((double)image.cols / boundingBox.width,
+		(double)image.rows / boundingBox.height);
 
-	//		BGR[1] = (BGR[1] < min ? 0 : BGR[1] - min);
-	//		BGR[0] = (BGR[0] < min ? 0 : BGR[0] - min);
-	//		BGR[2] = (BGR[2] < min ? 0 : BGR[2] - min);
+	// Extraire et redimensionner la région de la feuille
+	cv::Mat leafRegion = image(boundingBox);
+	cv::Mat resizedLeaf;
+	cv::resize(leafRegion, resizedLeaf, cv::Size(), scale, scale, cv::INTER_AREA);
 
-	//		BGR[1] = (BGR[1] < 3 ? 0 : BGR[1] );
-	//	}
-	//}
+	// Créer une nouvelle image avec un fond noir
+	cv::Mat newImage(image.size(), image.type(), cv::Scalar::all(0));
 
-	//// remove background
-	//cv::Mat grayscaleImage;
-	//cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY); // Convertir en niveaux de gris
-	//std::vector<std::vector<cv::Point>> contours;
-	//cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-	//cv::Mat mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
-	//cv::fillPoly(mask, contours, cv::Scalar(255));
-	//originalImage.copyTo(image, mask);
+	// Calculer la position pour centrer l'image redimensionnée
+	cv::Rect roi((newImage.cols - resizedLeaf.cols) / 2,
+		(newImage.rows - resizedLeaf.rows) / 2,
+		resizedLeaf.cols, resizedLeaf.rows);
 
-	//// remove borders
-	//int erosionSize = 1;
-	//cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * erosionSize + 1, 2 * erosionSize + 1));
-	//cv::erode(image, image, element, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
-	//cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY); // Convertir en niveaux de gris
-	//cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	//mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
-	//cv::fillPoly(mask, contours, cv::Scalar(255));
-	//originalImage.copyTo(image, mask);
+	// Placer l'image redimensionnée sur le fond noir
+	resizedLeaf.copyTo(newImage(roi));
 
-	////////////////
-
-	//// Étape 1 : Trouver les points du contour convexe
-	//cv::Mat clone = image.clone();
-	//ImageProcessing::EqualizeHistogramValue(clone);
-	//ImageProcessing::EqualizeHistogramSaturation(clone);
-	//ImageProcessing::ColorFiltering(clone, cv::Scalar(25, 50, 50), cv::Scalar(100, 255, 255));
-	//std::vector<cv::Point> points = GetConvexHullPoints(clone);
-
-	//clone = image.clone();
-	////ImageProcessing::EqualizeHistogramValue(clone);
-	////ImageProcessing::EqualizeHistogramSaturation(clone);
-	//ImageProcessing::CropImageWithPoints(clone, points);
-	//ImageProcessing::ColorFiltering(clone, cv::Scalar(15, 50, 50), cv::Scalar(100, 255, 255));
-	//cv::stackBlur(clone, clone, { 15, 15 });
-
-
-	//cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
-	//std::vector<std::vector<cv::Point>> contours;
-	//int erosionSize = 8;
-	//cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * erosionSize + 1, 2 * erosionSize + 1));
-	//cv::erode(clone, clone, element, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
-	//cv::medianBlur(clone, clone, 11);
-	//cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	//points = std::vector<cv::Point>();
-	//for (size_t i = 0; i < contours.size(); ++i) {
-	//	points.insert(points.end(), contours[i].begin(), contours[i].end());
-
-
-	//// Étape 2 : Affinage de la forme
-	//clone = image.clone();
-	////ImageProcessing::EqualizeHistogramValue(clone);
-	////ImageProcessing::EqualizeHistogramSaturation(clone);
-	//ImageProcessing::CropImageWithPoints(clone, points);
-	//ImageProcessing::ColorFiltering(clone, cv::Scalar(0, 30, 30), cv::Scalar(100, 255, 255));
-	//cv::medianBlur(clone, clone, 31);
-
-	//// Étape 3 : Trouver les points du contour
-	//cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
-	//std::vector<std::vector<cv::Point>> contours;
-	//cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	//points = std::vector<cv::Point>();
-	//for (size_t i = 0; i < contours.size(); ++i) {
-	//	points.insert(points.end(), contours[i].begin(), contours[i].end());
-	//}
-
-	//// Étape 4 : Affinage de la forme
-	//clone = image.clone();
-	//ImageProcessing::CropImageWithPoints(clone, points);
-	//ImageProcessing::EqualizeHistogramValue(clone);
-	//ImageProcessing::EqualizeHistogramSaturation(clone);
-	//ImageProcessing::ColorFiltering(clone, cv::Scalar(0, 15, 5), cv::Scalar(180, 255, 255));
-	//cv::medianBlur(clone, clone, 21);
-
-	//// Étape 5 : Trouver les points du contour
-	//cv::inRange(clone, cv::Scalar(0, 0, 0), cv::Scalar(254, 254, 254), clone);
-	//contours = std::vector<std::vector<cv::Point>>();
-	//cv::findContours(clone, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	//points = std::vector<cv::Point>();
-	//for (size_t i = 0; i < contours.size(); ++i) {
-	//	points.insert(points.end(), contours[i].begin(), contours[i].end());
-	//}
-
-	// Étape 6 : Rogner l'image d'origine en fonction des points du contour final et appliquer une binarisation
-	//ImageProcessing::CropImageWithPoints(image, points);
-	//ImageProcessing::SimpleBinarization(image, 254);
-
-	// Retourner les points des contours extraits
+	// Mettre à jour l'image originale
+	image = newImage.clone();
 }

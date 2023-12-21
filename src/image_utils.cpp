@@ -120,42 +120,49 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 
 	std::vector<std::string> names = ImageUtils::GetImagesInDirectory(source, generation);
 	for (auto i = 0; i < names.size(); i++) {
+
 		// Load an image from the specified file path
 		cv::Mat originalImage = cv::imread(source + names[i], cv::IMREAD_COLOR);
 		if (originalImage.empty()) {
 			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
-
 		std::vector<cv::Mat> images;
+		
+		ImageProcessing::CutLeaf(originalImage);
+
 		// Create a vector to store multiple copies of the loaded image
 		for (int i = 0; i < 6; i++) {
 			images.push_back(originalImage.clone());
 		}
 
-		ImageProcessing::CutLeaf(images[0]);
-
+		// Apply transformations
+		
+		ImageProcessing::ConvertToGray(images[1]);
 		// green
 		images[2] = images[0].clone();
-		cv::Scalar green_lower(40, 0, 0);
-		cv::Scalar green_upper(100, 255, 255);
+		cv::Scalar green_lower(40, 100, 100);
+		cv::Scalar green_upper(80, 255, 255);
 		ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
-
 		// yellow
 		images[3] = images[0].clone();
-		cv::Scalar yellow_lower(25, 0, 0);
+		cv::Scalar yellow_lower(20, 100, 100);
 		cv::Scalar yellow_upper(40, 255, 255);
 		ImageProcessing::ColorFiltering(images[3], yellow_lower, yellow_upper, cv::Scalar(255, 0, 0));
-
 		// red
 		images[4] = images[0].clone();
-		cv::Scalar red_lower(0, 0, 0);
-		cv::Scalar red_upper(25, 255, 255);
+		cv::Scalar red_lower(0, 100, 100);
+		cv::Scalar red_upper(10, 255, 255);
 		ImageProcessing::ColorFiltering(images[4], red_lower, red_upper, cv::Scalar(255, 0, 0));
+		// brown
+		images[5] = images[0].clone();
+		cv::Scalar brown_lower(0, 100, 50);
+		cv::Scalar brown_upper(20, 180, 220);
+		ImageProcessing::ColorFiltering(images[5], brown_lower, brown_upper, cv::Scalar(255, 0, 0));
 
 		// Save the processed images with their respective labels
 		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };
-
 		ImageUtils::SaveImages(destination + names[i], images, transformations);
+
 		// Progression
 		int progress = (i + 1) * 100 / names.size();
 		int numComplete = (progress * 50) / 100;
@@ -167,7 +174,6 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 	std::cout << "\033[A\r\033[K";
 	std::cout << "\033[A\r\033[K";
 	std::cout << "\033[A\r\033[K";
-	//std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 }
 
 void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destination, int generation)
@@ -212,5 +218,4 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 	std::cout << "\033[A\r\033[K";
 	std::cout << "\033[A\r\033[K";
 	std::cout << "\033[A\r\033[K";
-	//std::cout << "\r\033[K[" << std::string(50, '=') << "] " << std::setw(3) << 100 << "%" << std::flush << std::endl << "\r\033[K";
 }

@@ -15,7 +15,7 @@ public:
 
 	static double LogisticRegressionHypothesis(const std::vector<double>& weights, const std::vector<double>& inputs);
 
-	static double Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& types,
+	static std::vector<double> Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& types,
 		const std::vector<std::vector<double>>& weights);
 
 	static double LossFunction(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& weights,

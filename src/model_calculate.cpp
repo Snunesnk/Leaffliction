@@ -145,11 +145,15 @@ double ModelCalculate::StandardDeviation(const std::vector<double>& data)
 	return std::sqrt(variance / count);
 }
 
-double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& types, const std::vector<std::vector<double>>& weights)
+std::vector<double> ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& onehots, const std::vector<std::vector<double>>& weights)
 {
 	const size_t dataSize = inputs.size();
 	const size_t typeCount = weights.size();
-	double correctPredictions = 0;
+
+	std::vector<double> classCount(8, 0);
+	std::vector<double> classPrediction(8, 0);
+	double correctPredictionsForTypes = 0;
+	double correctPredictionsForAll = 0;
 	for (size_t i = 0; i < dataSize; ++i) {
 		double maxProbability = -1.0;
 		size_t predictedHouse = 0;
@@ -160,17 +164,34 @@ double ModelCalculate::Accuracy(const std::vector<std::vector<double>>& inputs, 
 				predictedHouse = type;
 			}
 		}
-		// test only type accuracy
-		//auto type1 = types[i][0] + types[i][1] + types[i][2] + types[i][3];
-		//auto type2 = types[i][4] + types[i][5] + types[i][6] + types[i][7];
-		//if ((predictedHouse < 4 && type1) || (predictedHouse >= 4 && type2)) {
-		//	correctPredictions++;
-		//}
-		if (types[i][predictedHouse] == 1.0) {
-			correctPredictions++;
+		// for class
+		for (size_t j = 0; j < 8; ++j) {
+			if (onehots[i][j] == 1) {
+				classCount[j]++;
+				if (predictedHouse == j) {
+					classPrediction[j]++;
+				}
+				break;
+			}
+		}
+		// for all
+		if (onehots[i][predictedHouse] == 1.0) {
+			correctPredictionsForAll++;			
+		}
+		// for types
+		auto type1 = onehots[i][0] + onehots[i][1] + onehots[i][2] + onehots[i][3];
+		auto type2 = onehots[i][4] + onehots[i][5] + onehots[i][6] + onehots[i][7];
+		if ((predictedHouse < 4 && type1) || (predictedHouse >= 4 && type2)) {
+			correctPredictionsForTypes++;
 		}
 	}
-	return (correctPredictions / static_cast<double>(dataSize)) * 100.0;
+	std::vector<double> results;
+	for (size_t type = 0; type < 8; ++type) {
+		results.push_back((classPrediction[type] / classCount[type]) * 100.0);
+	}
+	results.push_back((correctPredictionsForTypes / static_cast<double>(dataSize)) * 100.0);
+	results.push_back((correctPredictionsForAll / static_cast<double>(dataSize)) * 100.0);
+	return results;
 }
 
 double ModelCalculate::LogisticRegressionHypothesis(const std::vector<double>& weights, const std::vector<double>& inputs)
@@ -212,7 +233,7 @@ double ModelCalculate::LossFunctionPartialDerivative(const std::vector<std::vect
 void ModelCalculate::GradientDescent(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
 	const std::vector<std::vector<double>>& target, const size_t type)
 {
-	const double learningRate = 0.9;
+	const double learningRate = 0.1;
 	const size_t size = weights[0].size();
 	std::vector<std::vector<double>> tmp_weights = weights;
 	tmp_weights[type][0] = weights[type][0];
@@ -236,12 +257,13 @@ void ModelCalculate::LogisticRegressionOneHotTrainning(
 	const size_t typesCount = weights.size();
 
 	// Header
-	std::cout << std::left << std::setw(std::to_string(epochs).length() + 8) << "Epochs" << std::setw(10);
+	std::cout << std::left << std::setw(std::to_string(epochs).length() + 8) << "Epochs";
 	for (auto counter = 1; counter <= typesCount; counter++) {
-		std::cout << "Loss " + std::to_string(counter) << std::setw(10);
+		std::cout << std::setw(10) << "Class " + std::to_string(counter);
 	}
-	std::cout << std::setw(10) << "Accuracy" << std::endl;
-
+	std::cout << std::setw(10) << "LEAF";
+	std::cout << std::setw(10) << "ALL";
+	std::cout << std::endl;
 	// Training
 	for (size_t epoch = 0; epoch < epochs; ++epoch) {
 		for (size_t type = 0; type < typesCount; type++) {
@@ -253,8 +275,13 @@ void ModelCalculate::LogisticRegressionOneHotTrainning(
 			double loss = ModelCalculate::LossFunction(trainingInputs, weights, trainingOneHot, type);
 			std::cout << std::setw(10) << std::setprecision(6) << loss;
 		}
-		double accuracy = ModelCalculate::Accuracy(validationInputs, validationOneHot, weights);
-		std::cout << std::setw(5) << std::fixed << std::setprecision(2) << accuracy << "%" << std::endl;
+		std::cout << std::endl;
+		std::cout << std::left << std::setw(std::to_string(epochs).length() + 8) << "Accuracy" << std::setw(10);
+		std::vector<double> accuracy = ModelCalculate::Accuracy(validationInputs, validationOneHot, weights);
+		for (const auto value : accuracy) {
+			std::cout << std::setw(10) << (std::ostringstream() << std::setprecision(3) << value << '%').str();
+		}
+		std::cout << std::endl;
 	}
 }
 
@@ -306,7 +333,7 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& dataBase)
 		//std::mt19937 gen(rd());
 		//std::shuffle(dataBase.begin(), dataBase.end(), gen);
 
-		//extensionScatterPlotMatrix(dataBase, selectedFeatures.size());
+		//extensionScatterPlotMatrix(dataBase, dataBase[0].features.size());
 
 		std::vector<std::vector<double>> weights(ModelUtils::types.size(), std::vector<double>(dataBase[0].features.size(), 0.0));
 		std::vector<std::vector<double>> trainingInputs, trainingOneHot, validationInputs, validationOneHot;
@@ -329,6 +356,15 @@ void ModelCalculate::CreateModel(std::vector<DataInfo>& dataBase)
 		}
 		std::cout << "for train : " << trainingInputs.size() << std::endl;
 		std::cout << "for valid : " << validationInputs.size() << std::endl;
+
+		//for (const auto OneHot : validationOneHot) {
+		//	for (const auto value : OneHot) {
+		//		std::cout << value << " ";
+		//	}
+		//	std::cout << std::endl;
+		//}
+		//std::cout << std::endl;
+		//exit(1);
 
 		// Train models
 		ModelCalculate::LogisticRegressionOneHotTrainning(weights, trainingInputs, validationInputs, trainingOneHot, validationOneHot, 2000);

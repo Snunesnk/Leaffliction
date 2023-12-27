@@ -128,7 +128,7 @@ void ModelCalculate::LogisticRegressionTargetsOneHotTraining(
 	// Header
 	std::cout << std::left << std::setw(std::to_string(epochs).length() + 8) << "Epochs";
 	for (auto counter = 1; counter <= numTargets; counter++) {
-		std::cout << std::setw(10) << "Class " + std::to_string(counter);
+		std::cout << std::setw(10) << "Target " + std::to_string(counter);
 	}
 	std::cout << std::endl;
 	// Training
@@ -197,7 +197,7 @@ void ModelCalculate::GenerateModels(
 		trainTargetsOneHot = newTrainTargetsOneHot;
 		std::cout << "For train : " << trainInputs.size() << std::endl;
 		std::cout << "For valid : " << validInputs.size() << std::endl;
-		ModelCalculate::LogisticRegressionTargetsOneHotTraining(weights, trainInputs, validInputs, trainTargetsOneHot, validTargetsOneHot, 200);
+		ModelCalculate::LogisticRegressionTargetsOneHotTraining(weights, trainInputs, validInputs, trainTargetsOneHot, validTargetsOneHot, 1);
 		weightsAfterTraining = weights;
 	}
 	catch (const std::exception& e) {

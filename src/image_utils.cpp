@@ -21,7 +21,7 @@ void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::M
 		{
 			std::lock_guard<std::mutex> lock(ImageUtils::mutex);
 			std::cout << "\r\033[K" << "Saved : " << outputFilename << std::flush;
-		}		
+		}
 	}
 }
 
@@ -85,7 +85,7 @@ void ImageUtils::SaveTFromToDirectory(const std::string& source, const std::stri
 		for (int i = 0; i < 6; i++) {
 			images.push_back(clone.clone());
 		}
-		cv::GaussianBlur(images[1], images[1], {5, 5}, 0);
+		cv::GaussianBlur(images[1], images[1], { 5, 5 }, 0);
 		ImageProcessing::EqualizeHistogramColor(images[2]);
 		ImageProcessing::DetectORBKeyPoints(images[3]);
 		ImageProcessing::EqualizeHistogramValue(images[4]);
@@ -114,38 +114,68 @@ void ImageUtils::SaveAFromToDirectory(const std::string& source, const std::stri
 		throw std::runtime_error("Missing source or destination directory.");
 	}
 
-	std::vector<std::string> names = ImageUtils::GetImagesInDirectory(source, generation);
+	size_t progress = 0;
+	std::vector<std::string> names = ImageUtils::GetImagesInDirectory(source, generation / 6 + 1);
 	for (auto i = 0; i < names.size(); i++) {
+
 		// Load an image from the specified file path
 		cv::Mat image = cv::imread(source + names[i]);
 		if (image.empty()) {
 			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
-		// Create a vector to store multiple copies of the loaded image
 		std::vector<cv::Mat> images;
-		for (int i = 0; i < 6; i++) {
-			images.push_back(image.clone());
+
+		// Apply various image processing operations to different copies of the image	
+		if (progress + 6 <= generation) {
+			for (int i = 0; i < 6; i++) {
+				images.push_back(image.clone());
+			}
+			ImageProcessing::Rotate(images[0], 5.0, 45.0);
+			ImageProcessing::Distort(images[1]);
+			ImageProcessing::Flip(images[2]);
+			ImageProcessing::Shear(images[3], 0.2, 0.3);
+			ImageProcessing::Scale(images[4], 0.5, 0.9);
+			ImageProcessing::Projective(images[5], 30, 40);
+			progress += 6;
 		}
-		// Apply various image processing operations to different copies of the image
-		ImageProcessing::Rotate(images[0], 5.0, 45.0);
-		ImageProcessing::Distort(images[1]);
-		ImageProcessing::Flip(images[2]);
-		ImageProcessing::Shear(images[3], 0.2, 0.3);
-		ImageProcessing::Scale(images[4], 0.5, 0.9);
-		ImageProcessing::Projective(images[5], 30, 40);
+		else {
+			if (progress == generation) {
+				break;
+			}
+			size_t num = generation - progress;
+			for (int i = 0; i < num; i++) {
+				images.push_back(image.clone());
+			}
+			ImageProcessing::Rotate(images[0], 5.0, 45.0);
+			if (num > 1) {
+				ImageProcessing::Distort(images[1]);
+			}
+			if (num > 2) {
+				ImageProcessing::Flip(images[2]);
+			}
+			if (num > 3) {
+				ImageProcessing::Shear(images[3], 0.2, 0.3);
+			}
+			if (num > 4) {
+				ImageProcessing::Scale(images[4], 0.5, 0.9);
+			}
+			progress += num;
+		}
 
 		// Create a mosaic image from the processed images
-		std::vector<std::string> labels = { "Rotate", "Distort", "Flip", "Shear", "Scale", "Projective" };
-		ImageUtils::SaveImages(destination + names[i], images, labels);
+		std::vector<std::string> augmentations = { "Rotate", "Distort", "Flip", "Shear", "Scale", "Projective" };
+		ImageUtils::SaveImages(destination + names[i], images, augmentations);
 
+		// Progression
 		{
-			// Progression
-			std::lock_guard<std::mutex> lock(ImageUtils::mutex);		
-			int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
+			std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+			int progress = ((ImageUtils::progress += 6) * 100) / ImageUtils::numComplete;
 			int numComplete = (progress * 50) / 100;
 			int numRemaining = 50 - numComplete;
 			std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
 			std::cout << "\033[A";
 		}
 	}
+
+
 }

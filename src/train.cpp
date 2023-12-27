@@ -188,11 +188,8 @@ void GenerateAugmentations(const std::vector<std::filesystem::directory_entry>& 
 		}
 		});
 	ImageUtils::numComplete = 0;
-	// Round up
 	for (auto& augGeneration : augGenerations) {
-		int roundUp = static_cast<int>(augGeneration / 6 + 0.9999);
-		ImageUtils::numComplete += roundUp;
-		augGeneration = roundUp;
+		ImageUtils::numComplete += augGeneration;
 	}
 	ImageUtils::progress = 0;
 	// Augmentation files
@@ -204,7 +201,7 @@ void GenerateAugmentations(const std::vector<std::filesystem::directory_entry>& 
 			}
 		}
 		});
-	std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "Augmentations generated : " << ImageUtils::progress * 6 << std::endl;
+	std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "Augmentations generated : " << ImageUtils::progress << std::endl;
 }
 
 void GenerateTransformations(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, int generation)
@@ -224,54 +221,68 @@ void GenerateTransformations(const std::vector<std::filesystem::directory_entry>
 
 void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, const std::string& source, const std::string& models)
 {
-	ImageUtils::numComplete = 0;
-	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
-		for (int directory = range.start; directory < range.end; directory++) {
-			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
-			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
-				const std::string imageName = entry.path().filename().string();
-				if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
-					{
-						std::lock_guard<std::mutex> lock(ImageUtils::mutex);
-						ImageUtils::numComplete++;
+	try {
+		ImageUtils::numComplete = 0;
+		cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+			for (int directory = range.start; directory < range.end; directory++) {
+				const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
+				for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+					const std::string imageName = entry.path().filename().string();
+					if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
+						{
+							std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+							ImageUtils::numComplete++;
+						}
 					}
 				}
-			}
-		}
-		});
-	miniz_cpp::zip_file zip;
-	ImageUtils::progress = 0;
-	for (const auto& filesystemDirectory : filesystemDirectories) {
-		for (const auto& entry : std::filesystem::directory_iterator(filesystemDirectory)) {
-			const std::string imageName = entry.path().filename().string();
-			if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
-				// calculate the relative path with respect to the base directory
-				std::string relativePath = std::filesystem::relative(entry.path(), source).generic_string();
-				try {
-					zip.write(entry.path().string(), relativePath);
+			}});
+		ImageUtils::progress = 0;
+		cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+			for (int directory = range.start; directory < range.end; directory++) {
+				miniz_cpp::zip_file zip;
+				for (const auto& entry : std::filesystem::directory_iterator(filesystemDirectories[directory])) {
+					const std::string imageName = entry.path().filename().string();
+					if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
+						// calculate the relative path with respect to the base directory
+						std::string relativePath = std::filesystem::relative(entry.path(), source).generic_string();
+						try {
+							zip.write(entry.path().string(), relativePath);
+						}
+						catch (const std::exception& e) {
+							throw std::runtime_error("error adding file to zip: " + entry.path().string() + " - " + e.what());
+						}
+						{
+							std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+							int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
+							int numComplete = (progress * 50) / 100;
+							int numRemaining = 50 - numComplete;
+							std::cout << "\r\033[K" << "Compressed : " << relativePath << std::flush;
+							std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+							std::cout << "\033[A";
+						}
+					}
 				}
-				catch (const std::exception& e) {
-					throw std::runtime_error("error adding file to zip: " + entry.path().string() + " - " + e.what());
-				}
-				int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
-				int numComplete = (progress * 50) / 100;
-				int numRemaining = 50 - numComplete;
-				std::cout << "\r\033[K" << "saved : " << relativePath << std::flush;
-				std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
-				std::cout << "\033[A";
+				zip.save(ModelUtils::targets[directory] + ".zip");
 			}
-		}
-	}
+			});
+		std::cout << "\n" << "\r\033[K" << "\033[A" << "\r\033[K";
 
-	try {
+		miniz_cpp::zip_file zip;
 		zip.writestr("models.txt", models);
+		zip.save("models.zip");
+
+		system("find . -maxdepth 2 -name '*.zip' -exec zip archive.zip '{}' \\; -exec rm '{}' \\;");
 	}
 	catch (const std::exception& e) {
-		std::cerr << "Error adding models data to zip: " << e.what() << std::endl;
-	}
+		std::cerr << std::endl << e.what() << std::endl;
+		std::cerr << "Trying by console command... " << std::endl;
 
-	std::cout << "\n" << "\r\033[K" << "\033[A" << "\r\033[K";
-	zip.save("archive.zip");
+		miniz_cpp::zip_file zip;
+		zip.writestr("models.txt", models);
+		zip.save("archive.zip");
+
+		system("find . -maxdepth 2 -type f -name '*_*' -exec zip archive.zip {} +");
+	}
 }
 
 int main(int argc, char* argv[])
@@ -289,7 +300,7 @@ int main(int argc, char* argv[])
 		// Grape_healthy       422 files
 		// Grape_spot          1075 files
 		std::string source;
-		std::string csv = "data.csv";
+		std::string csv;// = "data.csv";
 		int generation = 1640;
 		bool reset = true;
 
@@ -359,7 +370,7 @@ int main(int argc, char* argv[])
 		}
 
 		auto start_time = std::chrono::high_resolution_clock::now();
-		
+
 		std::vector<std::vector<double>> weights(ModelUtils::targets.size(), std::vector<double>(database[0].features.size(), 0.0));
 		std::vector<double> featureMeans, featureStdDevs;
 		ModelCalculate::GenerateModels(database, weights, featureMeans, featureStdDevs);

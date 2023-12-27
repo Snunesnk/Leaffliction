@@ -1,6 +1,7 @@
 #include "model_utils.h"
 
 #include <iostream>
+#include <random>
 
 const std::vector<std::string> ModelUtils::targets =
 {
@@ -130,15 +131,15 @@ void ModelUtils::SetupTrainingData(
 	const size_t numEntries = database.size();
 	const size_t numTargets = ModelUtils::targets.size();
 	const size_t numFeatures = database[0].features.size();
-	//// Init weights
-	//std::random_device rd;
-	//std::mt19937 gen(rd());
-	//std::uniform_real_distribution<double> distribution(-0.0, 0.0);
-	//for (size_t target = 0; target < numTargets; ++target) {
-	//	for (size_t feature = 0; feature < numFeatures; ++feature) {
-	//		weights[target][feature] = distribution(gen);
-	//	}
-	//}
+	// Init weights
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<double> distribution(-0.1, 0.1);
+	for (size_t target = 0; target < numTargets; ++target) {
+		for (size_t feature = 0; feature < numFeatures; ++feature) {
+			weights[target][feature] = distribution(gen);
+		}
+	}
 	for (size_t entry = 0; entry < numEntries; entry++) {
 		// Add train input
 		trainInputs.push_back(database[entry].features);
@@ -153,7 +154,6 @@ void ModelUtils::SetupTrainingData(
 		trainTargetsTargetsOneHot.push_back(result);
 	}
 }
-
 
 std::string ModelUtils::SaveModels(
 	const std::vector<std::vector<double>>& weights,

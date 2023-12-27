@@ -300,7 +300,7 @@ int main(int argc, char* argv[])
 		// Grape_healthy       422 files
 		// Grape_spot          1075 files
 		std::string source;
-		std::string csv;// = "data.csv";
+		std::string csv = "data.csv";
 		int generation = 1640;
 		bool reset = true;
 

@@ -57,24 +57,24 @@ double ModelCalculate::LossFunction(
 	const std::vector<std::vector<double>>& targetsOneHot,
 	const size_t target)
 {
-	const size_t size = inputs.size();
+	const size_t numEntries = inputs.size();
 	double loss = 0;
-	for (size_t i = 0; i < size; ++i) {
+	for (size_t i = 0; i < numEntries; ++i) {
 		double proba = ModelCalculate::LogisticRegressionHypothesis(weights[target], inputs[i]);
 		loss += targetsOneHot[i][target] * std::log(proba + 2.2250738585072014e-308) +
 			(1.0 - targetsOneHot[i][target]) * std::log(1.0 - proba + 2.2250738585072014e-308);
 	}
-	return -(1.0 / size) * loss;
+	return -(1.0 / numEntries) * loss;
 }
 
 double ModelCalculate::LogisticRegressionHypothesis(
-	const std::vector<double>& weights,
-	const std::vector<double>& inputs)
+	const std::vector<double>& inputWeights,
+	const std::vector<double>& inputFeatures)
 {
-	const size_t weightCount = weights.size();
+	const size_t numFeatures = inputFeatures.size();
 	double weightedSum = 0;
-	for (size_t i = 0; i < weightCount; ++i) {
-		weightedSum += weights[i] * inputs[i];
+	for (size_t i = 0; i < numFeatures; ++i) {
+		weightedSum += inputWeights[i] * inputFeatures[i];
 	}
 	double sigmoid = 1.0 / (1.0 + exp(-weightedSum));
 	return sigmoid;
@@ -87,13 +87,13 @@ double ModelCalculate::LossFunctionPartialDerivative(
 	const size_t target,
 	const size_t j)
 {
-	const size_t size = inputs.size();
+	const size_t numEntries = inputs.size();
 	double derivative = 0;
-	for (size_t i = 0; i < size; i++) {
+	for (size_t i = 0; i < numEntries; i++) {
 		double proba = ModelCalculate::LogisticRegressionHypothesis(weights[target], inputs[i]);
 		derivative += (proba - targetsOneHot[i][target]) * inputs[i][j];
 	}
-	return (1.0 / size) * derivative;
+	return (1.0 / numEntries) * derivative;
 }
 
 void ModelCalculate::GradientDescent(
@@ -103,10 +103,10 @@ void ModelCalculate::GradientDescent(
 	const size_t target)
 {
 	const double learningRate = 0.1;
-	const size_t size = weights[0].size();
+	const size_t numFeatures = inputs[0].size();
 	std::vector<std::vector<double>> tmp_weights = weights;
 	tmp_weights[target][0] = weights[target][0];
-	for (size_t j = 0; j < size; j++) {
+	for (size_t j = 0; j < numFeatures; j++) {
 		double derivative = ModelCalculate::LossFunctionPartialDerivative(inputs, weights, targetsOneHot, target, j);
 
 		tmp_weights[target][j] -= learningRate * derivative;
@@ -197,7 +197,7 @@ void ModelCalculate::GenerateModels(
 		trainTargetsOneHot = newTrainTargetsOneHot;
 		std::cout << "For train : " << trainInputs.size() << std::endl;
 		std::cout << "For valid : " << validInputs.size() << std::endl;
-		ModelCalculate::LogisticRegressionTargetsOneHotTraining(weights, trainInputs, validInputs, trainTargetsOneHot, validTargetsOneHot, 1);
+		ModelCalculate::LogisticRegressionTargetsOneHotTraining(weights, trainInputs, validInputs, trainTargetsOneHot, validTargetsOneHot, 200);
 		weightsAfterTraining = weights;
 	}
 	catch (const std::exception& e) {

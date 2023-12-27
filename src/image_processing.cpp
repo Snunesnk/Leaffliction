@@ -385,45 +385,43 @@ std::vector<double> ImageProcessing::ExtractGLCMFeatures(const cv::Mat& glcm)
 		sumAverage, sumVariance, sumEntropy, diffVariance, diffEntropy
 	};
 
-	// Doc :
-	//
-	// Contrast: Mesure la différence de luminosité entre un pixel et ses voisins sur toute l'image.
-	// (Une valeur élevée indique une grande différence de luminosité, ce qui suggère des textures plus prononcées.)
-	//
-	// Dissimilarity : Semblable au contraste, mais elle donne plus de poids aux différences de niveaux de gris.
-	//
-	// Homogeneity : Indique à quel point les éléments de la GLCM sont proches de la diagonale de la matrice.
-	// (Des valeurs élevées signifient que l'image est homogène.)
-	//
-	// ASM(Angular Second Moment) ou asmFeature : Mesure la régularité ou l'uniformité des niveaux de gris.
-	// (Des valeurs élevées suggèrent une uniformité plus grande.)
-	//
-	// Entropy : Représente le désordre ou la complexité de l'image.
-	// (Une entropie élevée signifie plus de complexité dans la texture de l'image.)
-	//
-	// Correlation : Mesure à quel point un pixel est corrélé à ses voisins sur toute l'image.
-	// (Des valeurs élevées indiquent une forte corrélation.)
-	//
-	// IDM(Inverse Difference Moment) ou homogénéité localisée : Mesure la localisation de l'homogénéité dans l'image.
-	//
-	// Cluster Shade : Un indicateur de l'asymétrie de la GLCM, il peut être utilisé pour détecter des textures asymétriques dans l'image.
-	//
-	// Cluster Prominence : Mesure l'asymétrie et la proéminence des éléments de la GLCM.
-	// (Des valeurs élevées peuvent indiquer des textures prononcées.)
-	//
-	// Max Probability : La probabilité la plus élevée parmi les éléments de la GLCM, souvent utilisée pour mesurer l'uniformité.
-	//
-	// Variance : Mesure la variabilité des niveaux de gris par rapport à la moyenne.
-	//
-	// Sum Average : La moyenne des sommes des niveaux de gris.
-	//
-	// Sum Variance : La variance des sommes des niveaux de gris.
-	//
-	// Sum Entropy : Mesure le désordre ou la complexité des sommes des niveaux de gris.
-	//
-	// Difference Variance : Variance de la différence des niveaux de gris.
-	//
-	// Difference Entropy : Entropie de la différence des niveaux de gris.
+	// Contrast: Measures the difference in brightness between a pixel and its neighbors across the entire image.
+	// (A high value indicates a significant difference in brightness, suggesting more pronounced textures.)
+
+	// Dissimilarity: Similar to contrast, but it gives more weight to differences in grayscale levels.
+
+	// Homogeneity: Indicates how closely the elements of the GLCM are located to the diagonal of the matrix.
+	// (High values mean the image is homogeneous.)
+	
+	// ASM (Angular Second Moment) or asmFeature: Measures the regularity or uniformity of grayscale levels.
+	// (High values suggest greater uniformity.)
+
+	// Entropy: Represents the disorder or complexity of the image.
+	// (High entropy means more complexity in the texture of the image.)
+
+	// Correlation: Measures how much a pixel is correlated with its neighbors across the entire image.
+	// (High values indicate strong correlation.)
+
+	// IDM (Inverse Difference Moment) or localized homogeneity: Measures the localization of homogeneity in the image.
+
+	// Cluster Shade: An indicator of GLCM's asymmetry, it can be used to detect asymmetric textures in the image.
+
+	// Cluster Prominence: Measures the asymmetry and prominence of GLCM elements.
+	// (High values can indicate pronounced textures.)
+
+	// Max Probability: The highest probability among the elements of GLCM, often used to measure uniformity.
+
+	// Variance: Measures the variability of grayscale levels relative to the mean.
+
+	// Sum Average: The average of the sums of grayscale levels.
+
+	// Sum Variance: The variance of the sums of grayscale levels.
+
+	// Sum Entropy: Measures the disorder or complexity of the sums of grayscale levels.
+
+	// Difference Variance: Variance of the difference in grayscale levels.
+
+	// Difference Entropy: Entropy of the difference in grayscale levels.
 }
 
 std::vector<double> ImageProcessing::ExtractTextureCaracteristics(const cv::Mat& image)

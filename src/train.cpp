@@ -1,364 +1,303 @@
-#include <iostream>
-#include <filesystem>
-#include <fstream>
-#include "image_processing.h"
 #include "image_utils.h"
-
+#include "image_processing.h"
 #include "model_utils.h"
 #include "model_calculate.h"
 
-#define M_PI 3.14159265358979323846264338327950288419716939937510582
+#include <iostream>
+#include <filesystem>
+#include <chrono>
 
-// Fonction personnalisée pour calculer la médiane d'une image
-double medianMat(const cv::Mat& src)
-{
-	std::vector<uchar> array;
-	if (src.isContinuous()) {
-		array.assign(src.datastart, src.dataend);
-	}
-	else {
-		for (int i = 0; i < src.rows; ++i) {
-			array.insert(array.end(), src.ptr<uchar>(i), src.ptr<uchar>(i) + src.cols);
-		}
-	}
-	std::nth_element(array.begin(), array.begin() + array.size() / 2, array.end());
-	return array[array.size() / 2];
-}
+#include <zip_file.hpp>
 
-// Function to calculate the Gray Level Co-occurrence Matrix (GLCM)
-cv::Mat calculateGLCM(const cv::Mat& img, int dx, int dy, int numLevels)
-{
-	cv::Mat glcm = cv::Mat::zeros(numLevels, numLevels, CV_32F);
-
-	for (int y = 0; y < img.rows; y++) {
-		for (int x = 0; x < img.cols; x++) {
-			int rowValue = img.at<uchar>(y, x);
-			int colValue = 0;
-
-			if ((y + dy) >= 0 && (y + dy) < img.rows && (x + dx) >= 0 && (x + dx) < img.cols) {
-				colValue = img.at<uchar>(y + dy, x + dx);
-			}
-
-			// Check if rowValue and colValue are within the bounds of the GLCM matrix
-			if (rowValue >= 0 && rowValue < numLevels && colValue >= 0 && colValue < numLevels) {
-				glcm.at<float>(rowValue, colValue) += 1.0f;
-			}
-		}
-	}
-
-	glcm = glcm / cv::sum(glcm)[0];
-	return glcm;
-}
-
-
-
-// Fonction pour extraire des caractéristiques à partir de la GLCM
-std::vector<double> extractGLCMFeatures(const cv::Mat& glcm)
-{
-	double contrast = 0.0;
-	double dissimilarity = 0.0;
-	double homogeneity = 0.0;
-	double energy = 0.0;
-	double correlation = 0.0;
-	double mean_i = 0.0;
-	double mean_j = 0.0;
-	double std_i = 0.0;
-	double std_j = 0.0;
-
-	// Calculer les moyennes et les écarts-types
-	for (int i = 0; i < glcm.rows; i++) {
-		for (int j = 0; j < glcm.cols; j++) {
-			mean_i += i * glcm.at<float>(i, j);
-			mean_j += j * glcm.at<float>(i, j);
-		}
-	}
-
-	for (int i = 0; i < glcm.rows; i++) {
-		for (int j = 0; j < glcm.cols; j++) {
-			std_i += glcm.at<float>(i, j) * (i - mean_i) * (i - mean_i);
-			std_j += glcm.at<float>(i, j) * (j - mean_j) * (j - mean_j);
-		}
-	}
-
-	std_i = sqrt(std_i);
-	std_j = sqrt(std_j);
-
-	// Calculer les caractéristiques
-	for (int i = 0; i < glcm.rows; i++) {
-		for (int j = 0; j < glcm.cols; j++) {
-			double p = glcm.at<float>(i, j);
-			contrast += p * (i - j) * (i - j);
-			dissimilarity += p * abs(i - j);
-			homogeneity += p / (1.0 + abs(i - j));
-			energy += p * p;
-			if (std_i != 0.0 && std_j != 0.0) {
-				correlation += (i * j * p - mean_i * mean_j) / (std_i * std_j);
-			}
-		}
-	}
-
-	return { contrast, dissimilarity, homogeneity, energy, correlation };
-}
-
-// Fonction pour extraire toutes les caractéristiques d'une image en niveaux de gris
-std::vector<double> extractFeaturesFromImageT1(const cv::Mat& image)
+std::vector<double> getCaracteristics(cv::Mat& image)
 {
 	std::vector<double> features;
 
-	cv::Mat grayImage;
-	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
-
-	//cv::Mat grayscaleImage = grayImage.clone();
-	//grayscaleImage.convertTo(grayscaleImage, CV_8U);
-	//cv::threshold(grayscaleImage, grayscaleImage, 1, 255, cv::THRESH_BINARY);
-	//double area = cv::countNonZero(grayscaleImage);
-
-	std::vector<std::vector<cv::Point>> contours;
-	cv::findContours(grayImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	double maxPerimeter = 0.0;
-	for (const auto& contour : contours) {
-		double perimeter = cv::arcLength(contour, true);
-		if (perimeter > maxPerimeter) {
-			maxPerimeter = perimeter;
-		}
-	}
-
-	//features.push_back(area);
-	features.push_back(maxPerimeter);
-	features.push_back(ImageProcessing::calculateAspectRatioOfObjects(image));
-
-	//// Nombre de composantes connectées
-	//cv::Mat labeledImage;
-	//int numConnectedComponents = cv::connectedComponents(grayImage, labeledImage, 8, CV_32S);
-	//cv::Moments moments = cv::moments(contours[0]);
-	//double huMoments[7];
-	//cv::HuMoments(moments, huMoments);
-	//features.push_back(numConnectedComponents);
-	//for (int i = 0; i < 7; ++i) {
-	//	features.push_back(huMoments[i]);
-	//}
-
-	// Statistiques de luminance
-	cv::Scalar mean, stddev;
-	cv::meanStdDev(image, mean, stddev);
-	double meanLuminance = mean.val[0];
-	double medianLuminance = medianMat(image);
-	double varianceLuminance = stddev.val[0] * stddev.val[0];
-	double stdDevLuminance = stddev.val[0];
-	features.push_back(meanLuminance);
-	features.push_back(medianLuminance);
-	features.push_back(varianceLuminance);
-	features.push_back(stdDevLuminance);
-
-	//// Histogramme des niveaux de luminance
-	//std::vector<int> histogram(256, 0);
-	//for (int y = 0; y < image.rows; ++y) {
-	//	for (int x = 0; x < image.cols; ++x) {
-	//		int pixelValue = static_cast<int>(image.at<uchar>(y, x));
-	//		histogram[pixelValue]++;
-	//	}
-	//}
-
-	//for (int i = 0; i < 256; i += 25) {
-	//	features.push_back(static_cast<double>(histogram[i]));
-	//}
-
-	//// Caractéristiques de texture (GLCM)
-	//cv::Mat gray;
-	//cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-	//cv::Mat yChannelNormalized;
-	//cv::normalize(gray, yChannelNormalized, 0, 255, cv::NORM_MINMAX, CV_8U);
-	//int numLevels = 8; // Ajustez selon vos besoins
-	//cv::Mat glcm = calculateGLCM(yChannelNormalized, 1, 1, numLevels); // Calculer la GLCM
-	//std::vector<double> glcmFeatures = extractGLCMFeatures(glcm); // Extraire des caractéristiques de la GLCM
-	//features.insert(features.end(), glcmFeatures.begin(), glcmFeatures.end()); // Ajouter les caractéristiques de GLCM aux caractéristiques
+	std::vector<double> color = ImageProcessing::ExtractColorCaracteristics(image);
+	std::vector<double> texture = ImageProcessing::ExtractTextureCaracteristics(image);
+	features.insert(features.end(), color.begin(), color.end());
+	features.insert(features.end(), texture.begin(), texture.end());
 
 	return features;
 }
 
-// Fonction pour extraire toutes les caractéristiques d'une image binaire
-std::vector<double> extractFeaturesFromImageT2(const cv::Mat& binaryImage)
+void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int generation)
 {
-	std::vector<double> features;
-
-	return features;
-}
-
-
-// Fonction pour extraire toutes les caractéristiques d'une image du canal Y
-std::vector<double> extractFeaturesFromImageT3(const cv::Mat& yChannelImage)
-{
-	std::vector<double> features;
-
-	return features;
-}
-
-// Fonction pour extraire toutes les caractéristiques d'une image de contours
-std::vector<double> extractFeaturesFromImageT4(const cv::Mat& contourImage)
-{
-	std::vector<double> features;
-
-	return features;
-}
-
-// Fonction pour extraire toutes les caractéristiques d'une image après amélioration du contraste
-std::vector<double> extractFeaturesFromImageT5(const cv::Mat& enhancedImage)
-{
-	std::vector<double> features;
-
-	return features;
-}
-
-// Fonction pour extraire toutes les caractéristiques d'une image après flou gaussien
-std::vector<double> extractFeaturesFromImageT6(const cv::Mat& blurredImage)
-{
-	std::vector<double> features;
-
-	return features;
-}
-
-std::vector<double> getTransformtionInfo(cv::Mat& image, const int transformation)
-{
-
-	if (transformation == 1) {
-		return extractFeaturesFromImageT1(image);
-	}
-	else if (transformation == 2) {
-		//return extractFeaturesFromImageT2(image);
-	}
-	else if (transformation == 3) {
-		//return extractFeaturesFromImageT3(image);
-	}
-	else if (transformation == 4) {
-		//return extractFeaturesFromImageT4(image);		
-	}
-	else if (transformation == 5) {
-		//return extractFeaturesFromImageT5(image);
-	}
-	else if (transformation == 6) {	
-		//return extractFeaturesFromImageT6(image);
-	}
-	return {  };
-}
-
-void CreateData(std::string source, std::vector<DataInfo>& dataBase, int generation)
-{
-	const std::vector<std::string> features = { "T1", "T2", "T3", "T4", "T5", "T6" };
-	std::vector<std::vector<std::string>> dataLines;
-
+	std::cout << "\r\033[K" << "Database generation..." << std::endl;
 	for (const auto& entry : std::filesystem::directory_iterator(source)) {
-		const std::string targetClass = entry.path().filename().generic_string();
+		// Get the target of the folder
+		const std::string target = entry.path().filename().generic_string();
 		// Next if not expected directory
-		if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), targetClass) == ModelUtils::types.end()) {
+		if (std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), target) == ModelUtils::targets.end()) {
 			continue;
 		}
-		const std::string source = entry.path().generic_string() + "/";
+		const std::string folderPath = entry.path().generic_string() + "/";
+		const std::vector<std::string> imagePaths = ImageUtils::GetImagesInDirectory(folderPath, generation);
 
-		//create packs
-		std::vector<std::string> files = ImageUtils::GetImagesInDirectory(source, generation);
-		std::unordered_map<std::string, size_t> packIndices;
-		std::vector<std::vector<std::string>> transmoPacks;
-		//split
-		for (auto& file : files) {
-			const size_t pos = file.find_last_of('_');
-			if (pos == std::string::npos || file[pos + 1] != 'T') {
+		std::vector<std::vector<std::string>> imageGroups;
+
+		// Parallel processing to split	
+		std::unordered_map<std::string, size_t> imageGroupIndices;
+		cv::parallel_for_(cv::Range(0, imagePaths.size()), [&](const cv::Range& range) {
+			for (int i = range.start; i < range.end; i++) {
+				const std::string& imagePath = imagePaths[i];
+				const size_t position = imagePath.find_last_of('_');
+				if (position == std::string::npos || imagePath[position + 1] != 'T') {
+					continue;
+				}
+				const std::string imageName = imagePath.substr(0, position);
+				{
+					std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+					if (imageGroupIndices.find(imageName) == imageGroupIndices.end()) {
+						imageGroupIndices[imageName] = imageGroups.size();
+						imageGroups.push_back({ imageName + ".JPG", imagePath });
+					}
+					else {
+						imageGroups[imageGroupIndices[imageName]].push_back(imagePath);
+					}
+				}
+			}
+			});
+		// Parallel processing to sort
+		cv::parallel_for_(cv::Range(0, imageGroups.size()), [&](const cv::Range& range) {
+			for (int i = range.start; i < range.end; i++) {
+				std::vector<std::string>& imageGroup = imageGroups[i];
+				std::sort(imageGroup.begin() + 1, imageGroup.end(), [](const std::string& a, const std::string& b) {
+					std::string numeroA = a.substr(a.length() - 5, 1);
+					std::string numeroB = b.substr(b.length() - 5, 1);
+					try {
+						int intA = std::stoi(numeroA);
+						int intB = std::stoi(numeroB);
+						return intA < intB;
+					}
+					catch (...) {
+						throw std::runtime_error("Error: stoi crash");
+					}
+					});
+			}
+			});
+
+		// Generate database
+		for (auto& imageGroup : imageGroups) {
+			if (imageGroup.size() != 7) {
 				continue;
 			}
-			const std::string name = file.substr(0, pos);
-			if (packIndices.find(name) == packIndices.end()) {
-				packIndices[name] = transmoPacks.size();
-				transmoPacks.push_back({ file });
+			DataEntry dataEntry;
+			std::vector<std::vector<double>> featureGroups(imageGroup.size());
+			// Parallel processing of each imageGroup
+			cv::parallel_for_(cv::Range(0, imageGroup.size()), [&](const cv::Range& range) {
+				for (int i = range.start; i < range.end; ++i) {
+					// Get image
+					std::string filePath = folderPath + imageGroup[i];
+					cv::Mat image = cv::imread(filePath, cv::IMREAD_UNCHANGED);
+					if (image.empty()) {
+						throw std::runtime_error("Unable to load the image: " + filePath);
+					}
+					// Add features 
+					const std::vector<double> features = getCaracteristics(image);
+					{
+						std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+						for (const auto feature : features) {
+							featureGroups[i].push_back(feature);
+						}
+						// Display name
+						std::cout << "\r\033[K" << filePath << std::flush;
+					}
+				}
+				});
+			// Add dataEntry to the database
+			dataEntry.index = database.size();
+			dataEntry.target = target;
+			for (const auto featureGroup : featureGroups) {
+				for (const auto feature : featureGroup) {
+					dataEntry.features.push_back(feature);
+				}
 			}
-			else {
-				transmoPacks[packIndices[name]].push_back(file);
-			}
-		}
-		//sort
-		for (auto& pack : transmoPacks) {
-			std::sort(pack.begin(), pack.end(), [](const std::string& a, const std::string& b) {
-				std::string numeroA = a.substr(a.length() - 5, 1);
-				std::string numeroB = b.substr(b.length() - 5, 1);
-				try {
-					int intA = std::stoi(numeroA);
-					int intB = std::stoi(numeroB);
-					return intA < intB;
-				}
-				catch (...) {
-					throw std::runtime_error("Error: stoi crash");
-				}
-				}
-			);
-		}
-		files.clear();
-
-		for (auto& pack : transmoPacks) {
-			if (pack.size() != 6) {
-				continue;
-			}
-			std::vector<std::string> dataLine;
-			for (auto i = 0; i < pack.size(); i++) {
-				std::string filePath = source + pack[i];
-				cv::Mat image = cv::imread(filePath, cv::IMREAD_COLOR);
-				if (image.empty()) {
-					throw std::runtime_error("Unable to load the image.");
-				}
-				// add new line
-				if (i == 0) {
-					// add index
-					dataLine.push_back(std::to_string(dataLines.size()));
-					// add class
-					dataLine.push_back(targetClass);
-					auto position = pack[i].find_last_of('_');
-					// add image name
-					dataLine.push_back(pack[i].substr(0, position));
-				}
-				// add features 
-				const std::vector<double> result = getTransformtionInfo(image, i + 1);
-				for (auto k = 0; k < result.size(); k++) {
-					dataLine.push_back(std::to_string(result[k]));
-				}
-				// Display
-				std::cout << "\r\033[K" << filePath;
-			}
-			// When line completed, push it and start new line
-			dataLines.push_back(dataLine);
-			// Display
-			int progress = ((dataLines.size() + 1) * 100) / ((generation / 7) * 8);
+			database.push_back(dataEntry);
+			// Update and display progression
+			int progress = (database.size() * 100) / ((generation / 7) * 8);
 			int numComplete = (progress * 50) / 100;
 			int numRemaining = 50 - numComplete;
-			std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%";
+			std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%";
 			std::cout << "\033[A";
 		}
-		std::cout << "\033[A\r\033[K";
-		std::cout << "\033[A\r\033[K";
 	}
-	std::cout << "\n\n\r\033[K\n\r\033[K\033[A\033[A\033[A\033[A";
-	//
-	for (auto i = 0; i < dataLines.size(); i++) {
-		dataBase.push_back(DataInfo());
-		dataBase.back().index = std::stoi(dataLines[i][0]);
-		dataBase.back().labels.push_back(dataLines[i][1]);
-		dataBase.back().labels.push_back(dataLines[i][2]);
+	std::cout << "\r\033[K" << "DataEntry generated : " << database.size() << std::endl;
+}
 
-		for (auto j = 0; j < dataLines[i].size() - 3; j++) {
-			dataBase.back().features.push_back(std::stod(dataLines[i][j + 3]));
+void DeleteExistingImages(const std::vector<std::filesystem::directory_entry>& filesystemDirectories)
+{
+	std::cout << "Reseting..." << std::endl;
+	ImageUtils::numComplete = 0;
+	// Count files
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		for (int directory = range.start; directory < range.end; directory++) {
+			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
+			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+				const std::string imageName = entry.path().filename().string();
+				if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
+					{
+						std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+						ImageUtils::numComplete++;
+					}
+				}
+			}
+		}
+		});
+	ImageUtils::progress = 0;
+	// Delete files
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		for (int directory = range.start; directory < range.end; directory++) {
+			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
+			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+				const std::string imageName = entry.path().filename().string();
+				if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
+					std::filesystem::remove(entry.path());
+					{
+						// Progression
+						std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+						std::cout << "\r\033[K" << "Delete file : " << entry.path().generic_string();
+						int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
+						int numComplete = (progress * 50) / 100;
+						int numRemaining = 50 - numComplete;
+						std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+						std::cout << "\033[A";
+					}
+				}
+			}
+		}
+		});
+	std::cout << std::endl << "\r\033[K" << "\033[A" << "\r\033[K" << "\033[A" << "\r\033[K" << "Images deleted : " << ImageUtils::progress << std::endl;
+}
+
+void GenerateAugmentations(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, int generation)
+{
+	std::cout << "\r\033[K" << "Augmentations..." << std::endl;
+	std::vector<double> augGenerations(ModelUtils::targets.size(), generation);
+	// Count files
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		for (int directory = range.start; directory < range.end; directory++) {
+			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
+			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+				if (entry.is_regular_file() && entry.path().extension() == ".JPG") {
+					if (--augGenerations[directory] == 0) {
+						break;
+					}
+				}
+			}
+		}
+		});
+	ImageUtils::numComplete = 0;
+	// Round up
+	for (auto& augGeneration : augGenerations) {
+		int roundUp = static_cast<int>(augGeneration / 6 + 0.9999);
+		ImageUtils::numComplete += roundUp;
+		augGeneration = roundUp;
+	}
+	ImageUtils::progress = 0;
+	// Augmentation files
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		for (int directory = range.start; directory < range.end; directory++) {
+			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
+			if (augGenerations[directory] > 0) {
+				ImageUtils::SaveAFromToDirectory(directoryPath, directoryPath, augGenerations[directory]);
+			}
+		}
+		});
+	std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "Augmentations generated : " << ImageUtils::progress * 6 << std::endl;
+}
+
+void GenerateTransformations(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, int generation)
+{
+	std::cout << "\r\033[K" << "Transformation..." << std::endl;
+	ImageUtils::numComplete = generation * 8;
+	ImageUtils::progress = 0;
+	// Transformation files
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		for (int directory = range.start; directory < range.end; directory++) {
+			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
+			ImageUtils::SaveTFromToDirectory(directoryPath, directoryPath, generation);
+		}
+		});
+	std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "Transformations generated : " << ImageUtils::progress * 6 << std::endl;
+}
+
+void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, const std::string& source, const std::string& models)
+{
+	ImageUtils::numComplete = 0;
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		for (int directory = range.start; directory < range.end; directory++) {
+			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
+			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+				const std::string imageName = entry.path().filename().string();
+				if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
+					{
+						std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+						ImageUtils::numComplete++;
+					}
+				}
+			}
+		}
+		});
+	miniz_cpp::zip_file zip;
+	ImageUtils::progress = 0;
+	for (const auto& filesystemDirectory : filesystemDirectories) {
+		for (const auto& entry : std::filesystem::directory_iterator(filesystemDirectory)) {
+			const std::string imageName = entry.path().filename().string();
+			if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
+				// calculate the relative path with respect to the base directory
+				std::string relativePath = std::filesystem::relative(entry.path(), source).generic_string();
+				try {
+					zip.write(entry.path().string(), relativePath);
+				}
+				catch (const std::exception& e) {
+					throw std::runtime_error("error adding file to zip: " + entry.path().string() + " - " + e.what());
+				}
+				int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
+				int numComplete = (progress * 50) / 100;
+				int numRemaining = 50 - numComplete;
+				std::cout << "\r\033[K" << "saved : " << relativePath << std::flush;
+				std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+				std::cout << "\033[A";
+			}
 		}
 	}
-	std::cout << std::endl;
-	//ModelUtils::SaveDataFile("data.csv", dataLines);
+
+	try {
+		zip.writestr("models.txt", models);
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Error adding models data to zip: " << e.what() << std::endl;
+	}
+
+	std::cout << "\n" << "\r\033[K" << "\033[A" << "\r\033[K";
+	zip.save("archive.zip");
 }
 
 int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " [-gen <generation_max>]");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -gen <generation_max> -csv <csv_path> --data");
 		}
-		std::string source = argv[1];
-		int generation = 100;
+		// Apple_Black_rot     620 files
+		// Apple_healthy       1640 files
+		// Apple_rust          275 files
+		// Apple_scab          629 files
+		// Grape_Black_rot     1178 files
+		// Grape_Esca          1382 files
+		// Grape_healthy       422 files
+		// Grape_spot          1075 files
+		std::string source;
+		std::string csv = "data.csv";
+		int generation = 1640;
+		bool reset = true;
 
 		// Parse command-line arguments
+		source = argv[1];
+		if (source.back() != '/') {
+			source += "/";
+		}
 		for (int i = 2; i < argc; ++i) {
 			std::string arg = argv[i];
 			if (arg == "-gen" && i + 1 < argc) {
@@ -373,125 +312,67 @@ int main(int argc, char* argv[])
 				}
 				++i;
 			}
+			else if (arg == "-csv" && i + 1 < argc) {
+				csv = arg[i + 1];
+				++i;
+			}
+			else if (arg == "--data") {
+				reset = false;
+			}
 			else if (arg == "-h") {
-				std::cout << "Usage: " << argv[0] << " [-gen <generation_max>]" << std::endl;
+				std::cout << "Usage: " << argv[0] << " -gen <generation_max> -csv <csv_path> --data" << std::endl;
 				return 0;
 			}
 		}
 
-		if (source.back() != '/') {
-			source += "/";
+		std::vector<DataEntry> database;
+
+		// Get folder list
+		std::vector<std::filesystem::directory_entry> filesystemDirectories;
+		for (const auto entry : std::filesystem::directory_iterator(source)) {
+			const std::string directoryName = entry.path().filename().generic_string();
+			// Check only for expected directories
+			if (std::filesystem::is_directory(entry.path()) && std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), directoryName) == ModelUtils::targets.end()) {
+				continue;
+			}
+			filesystemDirectories.push_back(entry);
 		}
 
-#ifdef _MSC_VER
-		// Apple_Black_rot     620 files
-		// Apple_healthy       1640 files
-		// Apple_rust          275 files
-		// Apple_scab          629 files
-		// Grape_Black_rot     1178 files
-		// Grape_Esca          1382 files
-		// Grape_healthy       422 files
-		// Grape_spot          1075 files
-		generation = 150; ///focus sur le nombre de coin
+		if (csv.empty()) {
+			auto start_time = std::chrono::high_resolution_clock::now();
 
-#endif
-		auto step = 0; // 0: create images and data. 1: only create data.
-		std::vector<DataInfo> dataBase;
-
-		bool checker = false;
-		for (const auto& entry : std::filesystem::directory_iterator("./")) {
-			std::filesystem::path entryPath = entry.path();
-			if (std::filesystem::is_regular_file(entryPath)) {
-				if (entryPath.filename().generic_string() == "data.csv") {
-					checker = true;
-					break;
-				}
+			std::cout << "Images generation..." << std::endl;
+			if (reset == true) {
+				DeleteExistingImages(filesystemDirectories);
+				GenerateAugmentations(filesystemDirectories, generation);
+				GenerateTransformations(filesystemDirectories, generation);
 			}
-		}
-		if (checker == false) {
-			if (step <= 0) {
-				// Delete existing generated images
-				std::cout << "Reseting..." << std::endl;
-				int imageCout = 0;
-				for (const auto& entry : std::filesystem::directory_iterator(source)) {
-					std::filesystem::path entryPath = entry.path();
-					if (std::filesystem::is_directory(entryPath)) {
-						const std::string target = entry.path().filename().generic_string();
-						// Next if not expected directory
-						if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), target) == ModelUtils::types.end()) {
-							continue;
-						}
-						std::string directoryPath = entryPath.generic_string() + "/";
-						for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
-							if (std::filesystem::is_regular_file(entry)) {
-								std::string filename = entry.path().filename().string();
-								if (filename.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
-									std::filesystem::remove(entry.path());
-									std::cout << "Delete file : " << entry.path() << "\r\033[K";
-									imageCout++;
-								}
-							}
-						}
-					}
-				}
-				std::cout << "Images deleted : " << imageCout << std::endl;
+			GenerateDatabase(source, database, generation * 7);
+			ModelUtils::SaveDataFile("data.csv", database);
 
-				// Augmentations limited by -gen
-				std::cout << "Doing augmentations if needed..." << std::endl;
-				int augmentationCout = 0;
-				for (const auto& entry : std::filesystem::directory_iterator(source)) {
-					std::filesystem::path entryPath = entry.path();
-					if (std::filesystem::is_directory(entryPath)) {
-						const std::string target = entry.path().filename().generic_string();
-						// Next if not expected directory
-						if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), target) == ModelUtils::types.end()) {
-							continue;
-						}
-						std::string directoryPath = entryPath.generic_string() + "/";
-						int tmp_generation = generation;
-						for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
-							if (entry.is_regular_file() && entry.path().extension() == ".JPG") {
-								if (--tmp_generation == 0) {
-									break;
-								}
-							}
-						}
-
-						if (tmp_generation > 0) {
-							augmentationCout += tmp_generation;
-							ImageUtils::SaveAFromToDirectory(directoryPath, directoryPath, tmp_generation / 6);
-						}
-					}
-				}
-				std::cout << "Augmentations generated : " << augmentationCout << std::endl;
-
-				// Transformations limited by -gen
-				std::cout << "Doing transformation..." << std::endl;
-				for (const auto& entry : std::filesystem::directory_iterator(source)) {
-					const std::string target = entry.path().filename().generic_string();
-					// Next if not expected directory
-					if (std::find(ModelUtils::types.begin(), ModelUtils::types.end(), target) == ModelUtils::types.end()) {
-						continue;
-					}
-					std::filesystem::path entryPath = entry.path();
-					if (std::filesystem::is_directory(entryPath)) {
-						std::string directoryPath = entryPath.generic_string() + "/";
-						ImageUtils::SaveTFromToDirectory(directoryPath, directoryPath, generation);
-					}
-				}
-				std::cout << "Transformations generated : " << generation * 8 * 6 << std::endl;
-			}
-			if (step <= 1) {
-				std::cout << "Doing data generation..." << std::endl;
-				CreateData(source, dataBase, generation * 7);
-			}
+			auto end_time = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+			std::cout << "\r\033[K" << "Images generation took " << duration * 0.000001 << " seconds." << std::endl;
 		}
 		else {
-			std::cout << "Loading data.csv..." << std::endl;
-			ModelUtils::LoadDataFile(dataBase, "data.csv");
+			ModelUtils::LoadDataFile(database, csv);
 		}
-		std::cout << "Creating model..." << std::endl;
-		ModelCalculate::CreateModel(dataBase);
+
+		auto start_time = std::chrono::high_resolution_clock::now();
+		
+		std::vector<std::vector<double>> weights(ModelUtils::targets.size(), std::vector<double>(database[0].features.size(), 0.0));
+		std::vector<double> featureMeans, featureStdDevs;
+		ModelCalculate::GenerateModels(database, weights, featureMeans, featureStdDevs);
+
+		auto end_time = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+		std::cout << "\r\033[K" << "Models training took " << duration * 0.000001 << " seconds." << std::endl;
+
+		// ZIP
+		std::cout << "ZIP generation..." << std::endl;
+		std::string models = ModelUtils::SaveModels(weights, featureMeans, featureStdDevs);
+		GenerateZip(filesystemDirectories, source, models);
+		std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "ZIP generated." << std::endl;
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;

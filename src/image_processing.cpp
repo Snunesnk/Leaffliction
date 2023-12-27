@@ -1,5 +1,5 @@
 #include "image_processing.h"
-#include <opencv2/opencv.hpp>
+
 #include <random>
 
 void ImageProcessing::Rotate(cv::Mat& image, double minDistr, double maxDistr)
@@ -26,24 +26,18 @@ void ImageProcessing::Distort(cv::Mat& image)
 {
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_real_distribution<> freqDistr(0.01, 0.015); // Fréquence des ondes
-	std::uniform_real_distribution<> ampDistr(5.0, 7.5);  // Amplitude des ondes
-
+	std::uniform_real_distribution<> freqDistr(0.01, 0.015);
+	std::uniform_real_distribution<> ampDistr(5.0, 7.5);
 	double frequency = freqDistr(gen);
 	double amplitude = ampDistr(gen);
-
 	cv::Mat dst(image.size(), image.type(), cv::Scalar(255, 255, 255));
-
 	for (int y = 0; y < image.rows; ++y) {
 		for (int x = 0; x < image.cols; ++x) {
 			int newY = y + static_cast<int>(amplitude * sin(x * frequency * 2 * 3.14));
-
 			newY = std::min(std::max(newY, 0), image.rows - 1);
-
 			dst.at<cv::Vec3b>(newY, x) = image.at<cv::Vec3b>(y, x);
 		}
 	}
-
 	image = dst;
 }
 
@@ -63,26 +57,20 @@ void ImageProcessing::Shear(cv::Mat& image, double minDistr, double maxDistr)
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<double> distr(minDistr, maxDistr);
 	double shearAmount = distr(gen);
-
-	// Calculer l'augmentation de la largeur due au cisaillement
+	// Calculate the increased width due to shear
 	double increasedWidth = image.cols + std::abs(shearAmount) * image.rows;
-
-	// Calculer le facteur d'échelle nécessaire
+	// Calculate the scale factor needed
 	double scaleFactor = static_cast<double>(image.cols) / increasedWidth;
-
-	// Calculer le décalage pour centrer l'image
+	// Calculate the offset to center the image
 	double offsetX = (image.cols - (scaleFactor * increasedWidth)) / 2.0;
 	double offsetY = (image.rows - (scaleFactor * image.rows)) / 2.0;
-
-	// Ajuster la matrice pour le cisaillement, la mise à l'échelle et le décalage
+	// Create a shear matrix for the transformation
 	cv::Mat shearMatrix = (cv::Mat_<double>(2, 3) << scaleFactor, shearAmount * scaleFactor, offsetX, 0, scaleFactor, offsetY);
-
-	// Appliquer la transformation
 	cv::Mat dst;
 	cv::warpAffine(image, dst, shearMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
-
 	image = dst;
 }
+
 
 void ImageProcessing::Scale(cv::Mat& image, double minDistr, double maxDistr)
 {
@@ -125,69 +113,9 @@ void ImageProcessing::Projective(cv::Mat& image, float minDistr, float maxDistr)
 	cv::warpPerspective(image, image, warpMatrix, image.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
 }
 
-
 void ImageProcessing::ConvertToGray(cv::Mat& inputImage)
 {
 	cv::cvtColor(inputImage, inputImage, cv::COLOR_BGR2GRAY);
-}
-
-void ImageProcessing::BinarizeImage(cv::Mat& inputImage)
-{
-	cv::Mat grayImage;
-	ImageProcessing::ConvertToGray(inputImage);
-	cv::threshold(inputImage, inputImage, 128, 255, cv::THRESH_BINARY);
-}
-
-void ImageProcessing::ExtractYChannel(cv::Mat& inputImage)
-{
-	if (inputImage.channels() == 3) {
-		cv::Mat yChannel;
-		cv::cvtColor(inputImage, yChannel, cv::COLOR_BGR2YCrCb);
-		std::vector<cv::Mat> channels;
-		cv::split(yChannel, channels);
-		inputImage = channels[0];
-	}
-}
-
-void ImageProcessing::ApplyCannyEdgeDetection(cv::Mat& inputImage)
-{
-	cv::Mat grayImage;
-	ImageProcessing::ConvertToGray(inputImage);
-	cv::Canny(inputImage, inputImage, 100, 200);
-}
-
-void ImageProcessing::ApplyGaussianBlur(cv::Mat& inputImage, int kernelSize)
-{
-	cv::GaussianBlur(inputImage, inputImage, cv::Size(kernelSize, kernelSize), 0);
-}
-
-void ImageProcessing::ApplyContrastEnhancement(cv::Mat& inputImage, double factor)
-{
-	inputImage.convertTo(inputImage, -1, factor, 0);
-}
-
-void ImageProcessing::ColorFiltering(cv::Mat& image, cv::Scalar lowerBound, cv::Scalar upperBound, cv::Scalar color)
-{
-	cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
-	cv::Mat objectMask;
-	cv::inRange(hsvImage, lowerBound, upperBound, objectMask);
-	cv::Mat bgMask;
-	cv::inRange(hsvImage, cv::Scalar(0, 0, 0), cv::Scalar(180, 255, 1), bgMask);
-	cv::Mat invertedObjectMask;
-	cv::bitwise_not(objectMask, invertedObjectMask);
-	cv::Mat maskToChange;
-	cv::bitwise_and(invertedObjectMask, ~bgMask, maskToChange);
-	image.setTo(color, maskToChange);
-}
-
-void ImageProcessing::EqualizeHistogram(cv::Mat& image)
-{
-	cv::Mat originalImage = image.clone();
-	cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-	cv::equalizeHist(image, image);
-	cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
-	image.copyTo(originalImage, image);
 }
 
 void ImageProcessing::EqualizeHistogramColor(cv::Mat& image)
@@ -224,85 +152,21 @@ void ImageProcessing::EqualizeHistogramValue(cv::Mat& image)
 
 void ImageProcessing::DetectORBKeyPoints(cv::Mat& image)
 {
-	// Créer un détecteur ORB
+	// ORB detector
 	cv::Ptr<cv::ORB> orb = cv::ORB::create();
-
-	// Détecter les points d'intérêt (keypoints)
 	std::vector<cv::KeyPoint> keypoints;
 	orb->detect(image, keypoints);
-
 	for (const cv::KeyPoint& kp : keypoints) {
 		cv::Point2f pt = kp.pt;
 		cv::circle(image, pt, 3, cv::Scalar(255, 0, 0), -1);
 	}
 }
 
-double ImageProcessing::calculateAspectRatioOfObjects(cv::Mat image)
-{
-	cv::Mat mask;
-	cv::inRange(image, cv::Scalar(1, 1, 1), cv::Scalar(255, 255, 255), mask);
-
-	std::vector<std::vector<cv::Point>> contours;
-	std::vector<cv::Vec4i> hierarchy;
-	cv::findContours(mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-	std::vector<cv::Point> allPoints;
-	for (size_t i = 0; i < contours.size(); ++i) {
-		allPoints.insert(allPoints.end(), contours[i].begin(), contours[i].end());
-	}
-
-	if (!allPoints.empty()) {
-		cv::RotatedRect minRect = cv::minAreaRect(allPoints);
-
-		double width = minRect.size.width;
-		double height = minRect.size.height;
-
-		double aspectRatio = (width > height) ? (width / height) : (height / width);
-
-		return aspectRatio;
-	}
-
-	return 0.0;
-}
-std::vector<cv::Point> ImageProcessing::GetConvexHullPoints(cv::Mat image)
-{
-	std::vector<cv::Point> convexHullPoints;
-
-	cv::Mat mask;
-	cv::inRange(image, cv::Scalar(0, 0, 0), cv::Scalar(1, 1, 1), mask);
-	
-	std::vector<std::vector<cv::Point>> contours;
-	cv::findContours(~mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-
-	std::vector<cv::Point> allPoints;
-	for (const auto& contour : contours) {
-		allPoints.insert(allPoints.end(), contour.begin(), contour.end());
-	}
-
-	if (!allPoints.empty()) {
-		cv::convexHull(cv::Mat(allPoints), convexHullPoints);
-	}
-
-	return convexHullPoints;
-}
-
-void ImageProcessing::CropImageWithPoints(cv::Mat& image, const std::vector<cv::Point>& points)
-{
-	cv::Mat mask = cv::Mat::zeros(image.size(), CV_8UC1);
-
-	std::vector<std::vector<cv::Point>> contourVector = { points };
-	cv::drawContours(mask, contourVector, 0, cv::Scalar(255), cv::FILLED);
-
-	cv::Mat croppedImage = cv::Mat::zeros(image.size(), image.type());
-	image.copyTo(croppedImage, mask);
-
-	image = croppedImage;
-}
-
-void ImageProcessing::CutLeaf(cv::Mat& image)
+void ImageProcessing::ExtractLeafAndRescale(cv::Mat& image)
 {
 	cv::Mat originalImage = image.clone();
 	cv::Mat hsvImage;
+	// Cut
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
 	for (int i = 0; i < originalImage.rows; i++) {
 		for (int j = 0; j < originalImage.cols; j++) {
@@ -314,7 +178,6 @@ void ImageProcessing::CutLeaf(cv::Mat& image)
 			BGR[1] = (BGR[1] < value ? 0 : BGR[1] - value);
 			BGR[0] = (BGR[0] < value ? 0 : BGR[0] - value);
 			BGR[2] = (BGR[2] < value ? 0 : BGR[2] - value);
-
 			if (hsvImage.at<cv::Vec3b>(i, j)[2] < 10) {
 				BGR[2] = 0;
 				BGR[1] = 0;
@@ -332,27 +195,42 @@ void ImageProcessing::CutLeaf(cv::Mat& image)
 			}
 		}
 	}
-	std::vector<cv::Point> points = ImageProcessing::GetConvexHullPoints(image);
 	image = originalImage.clone();
-	ImageProcessing::CropImageWithPoints(image, points);
-
-	//cv::Mat hsvImage;
-	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);	
-
+	// Get convexhull points and crop
+	std::vector<cv::Point> convexHullPoints;
+	cv::Mat grayImage;
+	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(grayImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+	std::vector<cv::Point> allPoints;
+	for (const auto& contour : contours) {
+		allPoints.insert(allPoints.end(), contour.begin(), contour.end());
+	}
+	if (!allPoints.empty()) {
+		cv::convexHull(cv::Mat(allPoints), convexHullPoints);
+		// Crop
+		cv::Mat mask = cv::Mat::zeros(image.size(), CV_8UC1);
+		std::vector<std::vector<cv::Point>> contourVector = { convexHullPoints };
+		cv::drawContours(mask, contourVector, 0, cv::Scalar(255), cv::FILLED);
+		cv::Mat croppedImage = cv::Mat::zeros(image.size(), image.type());
+		image.copyTo(croppedImage, mask);
+		image = croppedImage;
+	}
+	else {
+		image = originalImage.clone();
+	}
+	// Cut
+	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
 	for (int i = 0; i < originalImage.rows; i++) {
 		for (int j = 0; j < originalImage.cols; j++) {
 			cv::Vec3b& BGR = image.at<cv::Vec3b>(i, j);
-
 			uchar value = BGR[0];
 			if (BGR[2] < value) {
 				value = BGR[2];
 			}
-
 			BGR[1] = (BGR[1] < value ? 0 : BGR[1] - value);
 			BGR[0] = (BGR[0] < value ? 0 : BGR[0] - value);
 			BGR[2] = (BGR[2] < value ? 0 : BGR[2] - value);
-
-
 			if (hsvImage.at<cv::Vec3b>(i, j)[2] < 10) {
 				BGR[2] = 0;
 				BGR[1] = 0;
@@ -370,26 +248,23 @@ void ImageProcessing::CutLeaf(cv::Mat& image)
 			}
 		}
 	}
-	
-	cv::Mat grayscaleImage;
-	cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY);
+	cv::Mat grayImage;
+	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
 	std::vector<std::vector<cv::Point>> contours;
-	cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+	cv::findContours(grayImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 	cv::Mat mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 	cv::fillPoly(mask, contours, cv::Scalar(255));
 	originalImage.copyTo(image, mask);
-
-
-	int erosionSize = 1;
+	// Erode
+	int erosionSize = 9;
 	cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * erosionSize + 1, 2 * erosionSize + 1));
 	cv::erode(image, image, element, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
-	cv::cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY);
-	cv::findContours(grayscaleImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
+	cv::findContours(grayImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 	mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 	cv::fillPoly(mask, contours, cv::Scalar(255));
 	originalImage.copyTo(image, mask);
-
-	// Trouver le contour avec la plus grande aire
+	// Resize
 	double maxArea = 0.0;
 	std::vector<cv::Point> maxContour;
 	for (const auto& contour : contours) {
@@ -399,30 +274,225 @@ void ImageProcessing::CutLeaf(cv::Mat& image)
 			maxContour = contour;
 		}
 	}
-
-	// Calculer le rectangle englobant pour le contour maximal
 	cv::Rect boundingBox = cv::boundingRect(maxContour);
-
-	// Calculer le facteur de mise à l'échelle en conservant le rapport d'aspect
-	double scale = std::min((double)image.cols / boundingBox.width,
+	double scale = std::min(
+		(double)image.cols / boundingBox.width,
 		(double)image.rows / boundingBox.height);
-
-	// Extraire et redimensionner la région de la feuille
 	cv::Mat leafRegion = image(boundingBox);
 	cv::Mat resizedLeaf;
 	cv::resize(leafRegion, resizedLeaf, cv::Size(), scale, scale, cv::INTER_AREA);
-
-	// Créer une nouvelle image avec un fond noir
 	cv::Mat newImage(image.size(), image.type(), cv::Scalar::all(0));
-
-	// Calculer la position pour centrer l'image redimensionnée
-	cv::Rect roi((newImage.cols - resizedLeaf.cols) / 2,
+	cv::Rect roi(
+		(newImage.cols - resizedLeaf.cols) / 2,
 		(newImage.rows - resizedLeaf.rows) / 2,
-		resizedLeaf.cols, resizedLeaf.rows);
-
-	// Placer l'image redimensionnée sur le fond noir
+		resizedLeaf.cols,
+		resizedLeaf.rows);
 	resizedLeaf.copyTo(newImage(roi));
-
-	// Mettre à jour l'image originale
 	image = newImage.clone();
+}
+
+cv::Mat ImageProcessing::CalculateGLCM(const cv::Mat& img)
+{
+	cv::Mat glcm = cv::Mat::zeros(256, 256, CV_32F);
+
+	for (int y = 0; y < img.rows; y++) {
+		for (int x = 0; x < img.cols; x++) {
+			if (y + 1 < 0 || y + 1 >= img.rows || x + 1 < 0 || x + 1 >= img.cols)
+				continue;
+
+			int rowValue = img.at<uchar>(y, x);
+			int colValue = img.at<uchar>(y + 1, x + 1);
+			if (rowValue < 256 && colValue < 256) {
+				glcm.at<float>(rowValue, colValue) += 1.0f;
+			}
+		}
+	}
+
+	glcm = glcm / cv::sum(glcm)[0];
+	return glcm;
+}
+
+std::vector<double> ImageProcessing::ExtractGLCMFeatures(const cv::Mat& glcm)
+{
+	double contrast = 0.0, dissimilarity = 0.0, homogeneity = 0.0;
+	double asmFeature = 0.0, entropy = 0.0, correlation = 0.0;
+	double idm = 0.0, clusterShade = 0.0, clusterProminence = 0.0;
+	double maxProbability = 0.0, variance = 0.0;
+	double sumAverage = 0.0, sumVariance = 0.0, sumEntropy = 0.0;
+	double diffVariance = 0.0, diffEntropy = 0.0;
+	double mean_i = 0.0, mean_j = 0.0, std_i = 0.0, std_j = 0.0;
+	double N = static_cast<double>(glcm.rows);
+
+	// Precompute some sums
+	double sum_ij = 0.0, sum_p = 0.0;
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			double p = glcm.at<float>(i, j);
+			sum_ij += p * (i + j);
+			sum_p += p;
+			if (p > 0) entropy -= p * log(p);
+			maxProbability = std::max(maxProbability, p);
+		}
+	}
+
+	// Mean and standard deviation
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			double p = glcm.at<float>(i, j);
+			mean_i += i * p;
+			mean_j += j * p;
+		}
+	}
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			double p = glcm.at<float>(i, j);
+			std_i += p * (i - mean_i) * (i - mean_i);
+			std_j += p * (j - mean_j) * (j - mean_j);
+			variance += (i - mean_i) * (i - mean_i) * p;
+			if (i + j > 0) sumEntropy += (i + j) * p * log(i + j);
+			if (i != j) diffEntropy += abs(i - j) * p * log(abs(i - j));
+		}
+	}
+	std_i = sqrt(std_i);
+	std_j = sqrt(std_j);
+
+	// GLCM features
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			double p = glcm.at<float>(i, j);
+			double iMinusJ = abs(i - j);
+			double iPlusJ = i + j;
+
+			contrast += p * iMinusJ * iMinusJ;
+			dissimilarity += p * iMinusJ;
+			homogeneity += p / (1.0 + iMinusJ);
+			asmFeature += p * p;
+			idm += p / (1.0 + iMinusJ * iMinusJ);
+			clusterShade += pow(iPlusJ - sum_ij, 3) * p;
+			clusterProminence += pow(iPlusJ - sum_ij, 4) * p;
+			sumAverage += iPlusJ * p;
+			sumVariance += pow(iPlusJ - sumEntropy, 2) * p;
+			if (i != j) diffVariance += iMinusJ * p;
+
+			if (std_i != 0.0 && std_j != 0.0) {
+				correlation += (i * j * p - mean_i * mean_j) / (std_i * std_j);
+			}
+		}
+	}
+
+	return {
+		contrast, dissimilarity, homogeneity, asmFeature, entropy, correlation,
+		idm, clusterShade, clusterProminence, maxProbability, variance,
+		sumAverage, sumVariance, sumEntropy, diffVariance, diffEntropy
+	};
+
+	// Doc :
+	//
+	// Contrast: Mesure la différence de luminosité entre un pixel et ses voisins sur toute l'image.
+	// (Une valeur élevée indique une grande différence de luminosité, ce qui suggère des textures plus prononcées.)
+	//
+	// Dissimilarity : Semblable au contraste, mais elle donne plus de poids aux différences de niveaux de gris.
+	//
+	// Homogeneity : Indique à quel point les éléments de la GLCM sont proches de la diagonale de la matrice.
+	// (Des valeurs élevées signifient que l'image est homogène.)
+	//
+	// ASM(Angular Second Moment) ou asmFeature : Mesure la régularité ou l'uniformité des niveaux de gris.
+	// (Des valeurs élevées suggèrent une uniformité plus grande.)
+	//
+	// Entropy : Représente le désordre ou la complexité de l'image.
+	// (Une entropie élevée signifie plus de complexité dans la texture de l'image.)
+	//
+	// Correlation : Mesure à quel point un pixel est corrélé à ses voisins sur toute l'image.
+	// (Des valeurs élevées indiquent une forte corrélation.)
+	//
+	// IDM(Inverse Difference Moment) ou homogénéité localisée : Mesure la localisation de l'homogénéité dans l'image.
+	//
+	// Cluster Shade : Un indicateur de l'asymétrie de la GLCM, il peut être utilisé pour détecter des textures asymétriques dans l'image.
+	//
+	// Cluster Prominence : Mesure l'asymétrie et la proéminence des éléments de la GLCM.
+	// (Des valeurs élevées peuvent indiquer des textures prononcées.)
+	//
+	// Max Probability : La probabilité la plus élevée parmi les éléments de la GLCM, souvent utilisée pour mesurer l'uniformité.
+	//
+	// Variance : Mesure la variabilité des niveaux de gris par rapport à la moyenne.
+	//
+	// Sum Average : La moyenne des sommes des niveaux de gris.
+	//
+	// Sum Variance : La variance des sommes des niveaux de gris.
+	//
+	// Sum Entropy : Mesure le désordre ou la complexité des sommes des niveaux de gris.
+	//
+	// Difference Variance : Variance de la différence des niveaux de gris.
+	//
+	// Difference Entropy : Entropie de la différence des niveaux de gris.
+}
+
+std::vector<double> ImageProcessing::ExtractTextureCaracteristics(const cv::Mat& image)
+{
+	std::vector<double> features;
+
+	// Convert to grayscale
+	cv::Mat grayImage;
+	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
+
+	// Texture Features (GLCM - Gray-Level Co-occurrence Matrix)
+	cv::Mat grayImageNormalized;
+	cv::normalize(grayImage, grayImageNormalized, 0, 255, cv::NORM_MINMAX, CV_8U);
+	// Calculate GLCM
+	cv::Mat glcm = ImageProcessing::CalculateGLCM(grayImageNormalized);
+	// Extract GLCM features
+	std::vector<double> glcmFeatures = ImageProcessing::ExtractGLCMFeatures(glcm);
+	features.insert(features.end(), glcmFeatures.begin(), glcmFeatures.end());
+
+	return features;
+}
+
+std::vector<double> ImageProcessing::ExtractColorCaracteristics(const cv::Mat& image)
+{
+	std::vector<double> features;
+
+	// Compute means and standard deviations for BGR channels
+	cv::Scalar BGRMeans, BGRStdDevs;
+	cv::meanStdDev(image, BGRMeans, BGRStdDevs);
+	// Prepare the result vector
+	std::vector<double> BGR = {
+		BGRMeans[0], BGRMeans[1], BGRMeans[2],
+		BGRStdDevs[0], BGRStdDevs[1], BGRStdDevs[2],
+	};
+	// Compute for each channel : min and max for BGR channels
+	std::vector<cv::Mat> channelsBGR(3);
+	cv::split(image, channelsBGR);
+	for (int i = 0; i < 3; ++i) {
+		double minValues, maxValues;
+		cv::minMaxLoc(channelsBGR[i], &minValues, &maxValues);
+		BGR.push_back(minValues);
+		BGR.push_back(maxValues);
+	}
+	// Append the results to the features vector
+	features.insert(features.end(), BGR.begin(), BGR.end());
+
+	// Convert to HSV format
+	cv::Mat HSVImage;
+	cv::cvtColor(image, HSVImage, cv::COLOR_BGR2HSV);
+	// Compute means and standard deviations for HSV channels
+	cv::Scalar HSVMeans, HSVStdDevs;
+	cv::meanStdDev(HSVImage, HSVMeans, HSVStdDevs);
+	// Prepare the result vector
+	std::vector<double> HSV = {
+		HSVMeans[0], HSVMeans[1], HSVMeans[2],
+		HSVStdDevs[0], HSVStdDevs[1], HSVStdDevs[2],
+	};
+	// Compute for each channel : min and max for HSV channels
+	std::vector<cv::Mat> channelsHSV(3);
+	cv::split(HSVImage, channelsHSV);
+	for (int i = 0; i < 3; ++i) {
+		double minValues, maxValues;
+		cv::minMaxLoc(channelsHSV[i], &minValues, &maxValues);
+		HSV.push_back(minValues);
+		HSV.push_back(maxValues);
+	}
+	// Append the results to the features vector
+	features.insert(features.end(), HSV.begin(), HSV.end());
+
+	return features;
 }

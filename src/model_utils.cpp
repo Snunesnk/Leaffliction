@@ -1,10 +1,9 @@
 #include "model_utils.h"
-#include "model_calculate.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
 
-const std::vector<std::string> ModelUtils::types = {
+#include <iostream>
+
+const std::vector<std::string> ModelUtils::targets =
+{
 	"Apple_Black_rot",
 	"Apple_healthy",
 	"Apple_rust",
@@ -15,14 +14,18 @@ const std::vector<std::string> ModelUtils::types = {
 	"Grape_spot"
 };
 
-void ModelUtils::SaveDataFile(const std::string& filename, const std::vector<std::vector<std::string>>& data)
+void ModelUtils::SaveDataFile(
+	const std::string& filename,
+	const std::vector<DataEntry>& database)
 {
 	std::ofstream outputfile(filename);
 	if (outputfile.is_open()) {
-		for (size_t i = 0; i < data.size(); i++) {
-			for (size_t j = 0; j < data[i].size(); j++) {
-				outputfile << data[i][j];
-				if (j < data[i].size() - 1) {
+		for (size_t i = 0; i < database.size(); i++) {
+			outputfile << database[i].index << ",";
+			outputfile << database[i].target << ",";
+			for (size_t j = 0; j < database[i].features.size(); j++) {
+				outputfile << std::fixed << database[i].features[j];
+				if (j < database[i].features.size() - 1) {
 					outputfile << ",";
 				}
 				else {
@@ -31,15 +34,17 @@ void ModelUtils::SaveDataFile(const std::string& filename, const std::vector<std
 			}
 		}
 		outputfile.close();
-		std::cout << "Data saved to " << filename << std::endl;
 	}
 	else {
 		throw std::runtime_error("Unable to open " + filename);
 	}
 }
 
-void ModelUtils::LoadDataFile(std::vector<DataInfo>& datainfos, const std::string& filename)
+void ModelUtils::LoadDataFile(
+	std::vector<DataEntry>& database,
+	const std::string& filename)
 {
+	std::cout << "\r\033[K" << "Loading data.csv..." << std::endl;
 	std::ifstream inputfile(filename);
 
 	if (!inputfile.is_open()) {
@@ -47,22 +52,21 @@ void ModelUtils::LoadDataFile(std::vector<DataInfo>& datainfos, const std::strin
 	}
 
 	try {
-		std::string line;
-		while (std::getline(inputfile, line)) {
-			std::istringstream linestream(line);
+		std::string entry;
+		while (std::getline(inputfile, entry)) {
+			std::istringstream linestream(entry);
 			std::string element;
 			std::vector<std::string> row;
 			while (std::getline(linestream, element, ',')) {
 				row.push_back(element);
 			}
-			DataInfo datainfo;
-			datainfo.index = std::stoi(row[0]);
-			datainfo.labels.push_back(row[1]);
-			datainfo.labels.push_back(row[2]);
-			for (size_t i = 3; i < row.size(); i++) {
-				datainfo.features.push_back(std::stod(row[i]));
+			DataEntry entry;
+			entry.index = std::stoi(row[0]);
+			entry.target = row[1];
+			for (size_t i = 2; i < row.size(); i++) {
+				entry.features.push_back(std::stod(row[i]));
 			}
-			datainfos.push_back(datainfo);
+			database.push_back(entry);
 		}
 	}
 	catch (...) {
@@ -73,130 +77,161 @@ void ModelUtils::LoadDataFile(std::vector<DataInfo>& datainfos, const std::strin
 	std::cout << "Data loaded from " << filename << std::endl;
 }
 
-
-void ModelUtils::StandardNormalizationData(std::vector<DataInfo>& data, std::vector<double>& featureMeans, std::vector<double>& featureStdDevs)
+void ModelUtils::NormalizationZScore(
+	std::vector<DataEntry>& database,
+	std::vector<double>& featureMeans,
+	std::vector<double>& featureStdDevs)
 {
-	if (featureMeans.size() + featureStdDevs.size() == 0) {
-		for (size_t i = 0; i < data[0].features.size(); ++i) {
-			std::vector<double> featureValues;
-			for (const DataInfo& entry : data) {
-				featureValues.push_back(entry.features[i]);
-			}
-			double mean = ModelCalculate::Mean(featureValues);
-			double stdDev = ModelCalculate::StandardDeviation(featureValues);
+	const size_t numFeatures = database[0].features.size();
 
-			featureMeans.push_back(mean);
-			featureStdDevs.push_back(stdDev);
+	for (size_t i = 0; i < numFeatures; ++i) {
+		std::vector<double> featureValues;
+		for (const DataEntry& entry : database) {
+			featureValues.push_back(entry.features[i]);
 		}
+		// Calculate mean
+		double sum = 0.0;
+		for (const double& value : featureValues) {
+			sum += value;
+		}
+		double mean = sum / database.size();
+
+		// Calculate standard deviation
+		double sumSquaredDiff = 0.0;
+		for (const double& value : featureValues) {
+			double diff = value - mean;
+			sumSquaredDiff += diff * diff;
+		}
+		double standardDeviation = std::sqrt(sumSquaredDiff / database.size());
+
+		featureMeans.push_back(mean);
+		featureStdDevs.push_back(standardDeviation);
 	}
-	int warnings = 0;
-	std::cout << std::endl;
-	for (DataInfo& entry : data) {
-		for (size_t i = 0; i < entry.features.size(); ++i) {
+
+	//Filter
+	for (DataEntry& entry : database) {
+		std::vector<double> newFeatures;
+		for (size_t i = 0; i < numFeatures; ++i) {
+			// Filter out standard deviation zero
 			if (featureStdDevs[i] != 0.0) {
-				entry.features[i] = (entry.features[i] - featureMeans[i]) / featureStdDevs[i];
-			}
-			else {
-				entry.features[i] = 0;
+				newFeatures.push_back((entry.features[i] - featureMeans[i]) / featureStdDevs[i]);
 			}
 		}
+		entry.features = newFeatures;
 	}
-	for (auto featureStdDev : featureStdDevs) {
-		if (featureStdDev == 0) {
-			warnings++;
-		}
-	}
-	if (warnings) {
-		std::cout << "Warning: " << warnings << " features have a zero standard deviation." << std::endl;
-	}
-	std::cout << std::endl;
 }
 
-void ModelUtils::SaveModels(const std::vector<std::vector<double>>& weights,
-	const std::vector<double>& featureMeans,
-	const std::vector<double>& featureStdDevs,
-	const std::string& filename)
+void ModelUtils::SetupTrainingData(
+	const std::vector<DataEntry>& database,
+	std::vector<std::vector<double>>& weights,
+	std::vector<std::vector<double>>& trainInputs,
+	std::vector<std::vector<double>>& trainTargetsTargetsOneHot)
 {
-	// Ouvrir le fichier en mode écriture
-	std::ofstream outFile(filename);
-
-	if (!outFile.is_open()) {
-		std::cerr << "Error: Unable to open the file " << filename << " for writing." << std::endl;
-		return;
-	}
-
-	// Enregistrer les caractéristiques (moyennes et écarts types)
-	outFile << "FeatureMeans:";
-	for (double mean : featureMeans) {
-		outFile << " " << mean;
-	}
-	outFile << "\n";
-
-	outFile << "FeatureStandardDeviations:";
-	for (double stdDev : featureStdDevs) {
-		outFile << " " << stdDev;
-	}
-	outFile << "\n\n";
-
-	// Enregistrer les poids
-	for (const auto& typeWeights : weights) {
-		for (double weight : typeWeights) {
-			outFile << weight << " ";
+	const size_t numEntries = database.size();
+	const size_t numTargets = ModelUtils::targets.size();
+	const size_t numFeatures = database[0].features.size();
+	//// Init weights
+	//std::random_device rd;
+	//std::mt19937 gen(rd());
+	//std::uniform_real_distribution<double> distribution(-0.0, 0.0);
+	//for (size_t target = 0; target < numTargets; ++target) {
+	//	for (size_t feature = 0; feature < numFeatures; ++feature) {
+	//		weights[target][feature] = distribution(gen);
+	//	}
+	//}
+	for (size_t entry = 0; entry < numEntries; entry++) {
+		// Add train input
+		trainInputs.push_back(database[entry].features);
+		// Add train one-hot
+		std::vector<double> result(numTargets, 0.0);
+		for (size_t target = 0; target < numTargets; ++target) {
+			if (ModelUtils::targets[target] == database[entry].target) {
+				result[target] = 1.0;
+				break;
+			}
 		}
-		outFile << "\n";
+		trainTargetsTargetsOneHot.push_back(result);
 	}
-
-	// Fermer le fichier
-	outFile.close();
 }
 
-void ModelUtils::LoadModelInformations(std::vector<std::vector<double>>& weights,
+
+std::string ModelUtils::SaveModels(
+	const std::vector<std::vector<double>>& weights,
+	const std::vector<double>& featureMeans,
+	const std::vector<double>& featureStdDevs)
+{
+	std::ostringstream oss;
+
+	// Mean
+	for (double mean : featureMeans) {
+		oss << mean << " ";
+	}
+	oss << "\n";
+	// StdDev
+	for (double stdDev : featureStdDevs) {
+		oss << stdDev << " ";
+	}
+	oss << "\n\n";
+	// Weights
+	for (const auto& targetWeights : weights) {
+		for (double weight : targetWeights) {
+			oss << weight << " ";
+		}
+		oss << "\n";
+	}
+
+	return oss.str();
+}
+
+
+void ModelUtils::LoadModels(
+	std::vector<std::vector<double>>& weights,
 	std::vector<double>& featureMeans,
 	std::vector<double>& featureStdDevs,
 	const std::string& filename)
 {
-	// Ouvrir le fichier en mode lecture
-	std::ifstream inFile(filename);
-
-	if (!inFile.is_open()) {
-		std::cerr << "Error: Unable to open the file " << filename << " for reading." << std::endl;
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		std::cerr << "Error opening file: " << filename << std::endl;
 		return;
 	}
 
+	// Clear existing data
+	weights.clear();
+	featureMeans.clear();
+	featureStdDevs.clear();
+
 	std::string line;
-	// Lire les moyennes des caractéristiques
-	std::getline(inFile, line);
-	std::istringstream meanStream(line);
-	std::string meanLabel;
-	meanStream >> meanLabel; // Ignorer le label "Feature Means:"
-	double meanValue;
-	while (meanStream >> meanValue) {
-		featureMeans.push_back(meanValue);
-	}
 
-	// Lire les écarts types des caractéristiques
-	std::getline(inFile, line);
-	std::istringstream stdDevStream(line);
-	std::string stdDevLabel;
-	stdDevStream >> stdDevLabel; // Ignorer le label "Feature Standard Deviations:"
-	double stdDevValue;
-	while (stdDevStream >> stdDevValue) {
-		featureStdDevs.push_back(stdDevValue);
-	}
-
-	// Lire les poids
-	weights.clear(); // Assurez-vous de vider le vecteur avant de le remplir
-	std::getline(inFile, line);
-	while (std::getline(inFile, line)) {
-		std::istringstream weightStream(line);
-		double weight;
-		std::vector<double> typeWeights;
-		while (weightStream >> weight) {
-			typeWeights.push_back(weight);
+	// Load feature means
+	if (std::getline(file, line)) {
+		std::istringstream meanStream(line);
+		double mean;
+		while (meanStream >> mean) {
+			featureMeans.push_back(mean);
 		}
-		weights.push_back(typeWeights);
 	}
 
-	// Fermer le fichier
-	inFile.close();
+	// Load feature standard deviations
+	if (std::getline(file, line)) {
+		std::istringstream stdDevStream(line);
+		double stdDev;
+		while (stdDevStream >> stdDev) {
+			featureStdDevs.push_back(stdDev);
+		}
+	}
+
+	// Load weights
+	while (std::getline(file, line)) {
+		if (line.empty()) continue;
+		std::istringstream weightStream(line);
+		std::vector<double> targetWeights;
+		double weight;
+		while (weightStream >> weight) {
+			targetWeights.push_back(weight);
+		}
+		weights.push_back(targetWeights);
+	}
+
+	file.close();
 }

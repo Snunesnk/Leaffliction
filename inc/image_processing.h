@@ -14,24 +14,19 @@ public:
 	static void Projective(cv::Mat& image, float minDistr, float maxDistr);
 
 	static void ConvertToGray(cv::Mat& inputImage);
-	static void BinarizeImage(cv::Mat& inputImage);
-	static void ExtractYChannel(cv::Mat& inputImage);
-	static void ApplyCannyEdgeDetection(cv::Mat& inputImage);
-	static void ApplyGaussianBlur(cv::Mat& inputImage, int kernelSize);
-	static void ApplyContrastEnhancement(cv::Mat& inputImage, double factor);
-
-	static void ColorFiltering(cv::Mat& image, cv::Scalar lowerBound, cv::Scalar upperBound, cv::Scalar color = { 255, 255, 255 });
-	static void EqualizeHistogram(cv::Mat& image);
 	static void EqualizeHistogramColor(cv::Mat& image);
 	static void EqualizeHistogramSaturation(cv::Mat& image);
 	static void EqualizeHistogramValue(cv::Mat& image);
 	static void DetectORBKeyPoints(cv::Mat& image);
 
-	static std::vector<cv::Point> GetConvexHullPoints(cv::Mat image);
-	static void CropImageWithPoints(cv::Mat& image, const std::vector<cv::Point>& points);
-	static double calculateAspectRatioOfObjects(cv::Mat image);
+	static void ExtractLeafAndRescale(cv::Mat& image);
 
-	static void CutLeaf(cv::Mat& image);
+	static std::vector<double> ExtractTextureCaracteristics(const cv::Mat& image);
+	static std::vector<double> ExtractColorCaracteristics(const cv::Mat& image);
+
+private :
+	static cv::Mat CalculateGLCM(const cv::Mat& img);
+	static std::vector<double> ExtractGLCMFeatures(const cv::Mat& glcm);
 };
 
 #endif

@@ -1,29 +1,12 @@
 #include "image_utils.h"
 #include "image_processing.h"
 
-void ImageUtils::ShowMosaic(const std::vector<cv::Mat>& images, const std::string& name, const std::vector<std::string>& labels)
-{
-	const double labelFontSize = 0.75;
-	const double labelThickness = 1;
+#include <filesystem>
 
-	std::vector<cv::Mat> cols;
-	for (int j = 0; j < images.size(); j++) {
-		// Image
-		const cv::Mat image = images[j];
-		const std::string label = labels[j];
-		cv::Mat labeledImage(image.rows + 30, image.cols, CV_8UC3, cv::Scalar(0, 0, 0));
-		image.copyTo(labeledImage(cv::Rect(0, 30, image.cols, image.rows)));
-		// Label
-		const int textWidth = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, labelFontSize, labelThickness, 0).width;
-		const int xPos = (labeledImage.cols - textWidth) / 2;
-		cv::putText(labeledImage, label, cv::Point(xPos, 20), cv::FONT_HERSHEY_SIMPLEX, labelFontSize, cv::Scalar(255, 255, 255), labelThickness);
 
-		cols.push_back(labeledImage);
-	}
-	cv::Mat mosaic;
-	cv::hconcat(cols, mosaic);
-	cv::imshow(name, mosaic);
-}
+std::mutex ImageUtils::mutex;
+int ImageUtils::progress;
+int ImageUtils::numComplete;
 
 void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::Mat>& images, const std::vector<std::string>& types)
 {
@@ -34,8 +17,11 @@ void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::M
 
 	for (int i = 0; i < images.size(); i++) {
 		const std::string outputFilename = saveDir + imgName + "_" + types[i] + ".JPG";
-		cv::imwrite(outputFilename, images[i], { cv::IMWRITE_JPEG_QUALITY, 100 });
-		std::cout << "\r\033[K" << "Saved : " << outputFilename;
+		cv::imwrite(outputFilename, images[i]);
+		{
+			std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+			std::cout << "\r\033[K" << "Saved : " << outputFilename << std::flush;
+		}		
 	}
 }
 
@@ -48,7 +34,9 @@ std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& dir
 		if (entry.is_regular_file() && entry.path().extension() == ".JPG") {
 			std::string fileName = entry.path().filename().generic_string();
 			images.push_back(fileName);
-
+			if (--generation == 0) {
+				break;
+			}
 		}
 	}
 
@@ -70,48 +58,10 @@ std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& dir
 		}
 	);
 
-	if (generation >= 0 && generation < images.size()) {
-		images.erase(images.begin() + generation, images.end());
-	}
-
-	std::cout << directoryPath << std::endl;
-	std::cout << images.size() << " files" << std::endl;
 	return images;
 }
 
-double ImageUtils::Mean(const std::vector<double>& data)
-{
-	double sum = 0.0;
-	double count = 0.0;
-	for (const auto& value : data) {
-		if (!std::isnan(value) && !std::isinf(value)) {
-			sum += value;
-			count++;
-		}
-	}
-	if (count == 0) {
-		return 0;
-	}
-	return sum / count;
-}
-
-double ImageUtils::StandardDeviation(const std::vector<double>& data)
-{
-	double m = Mean(data);
-	double variance = 0.0;
-	double count = 0;
-	for (const auto& value : data) {
-		if (!std::isnan(value) && !std::isinf(value)) {
-			variance += std::pow(value - m, 2);
-			count++;
-		}
-	}
-	if (count == 0) {
-		return 0;
-	}
-	return std::sqrt(variance / count);
-}
-void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destination, int generation)
+void ImageUtils::SaveTFromToDirectory(const std::string& source, const std::string& destination, int generation)
 {
 	// Check if source and destination are provided
 	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
@@ -119,64 +69,45 @@ void ImageUtils::SaveTFromToDirectory(std::string& source, std::string& destinat
 	}
 
 	std::vector<std::string> names = ImageUtils::GetImagesInDirectory(source, generation);
+
 	for (auto i = 0; i < names.size(); i++) {
 
-		// Load an image from the specified file path
-		cv::Mat originalImage = cv::imread(source + names[i], cv::IMREAD_COLOR);
+		// Load image
+		cv::Mat originalImage = cv::imread(source + names[i]);
 		if (originalImage.empty()) {
 			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
+
+		// Process images
 		std::vector<cv::Mat> images;
-		
-		ImageProcessing::CutLeaf(originalImage);
-
-		// Create a vector to store multiple copies of the loaded image
+		cv::Mat clone = originalImage.clone();
+		ImageProcessing::ExtractLeafAndRescale(clone);
 		for (int i = 0; i < 6; i++) {
-			images.push_back(originalImage.clone());
+			images.push_back(clone.clone());
 		}
+		cv::GaussianBlur(images[1], images[1], {5, 5}, 0);
+		ImageProcessing::EqualizeHistogramColor(images[2]);
+		ImageProcessing::DetectORBKeyPoints(images[3]);
+		ImageProcessing::EqualizeHistogramValue(images[4]);
+		ImageProcessing::EqualizeHistogramSaturation(images[5]);
 
-		// Apply transformations
-		
-		ImageProcessing::ConvertToGray(images[1]);
-		// green
-		images[2] = images[0].clone();
-		cv::Scalar green_lower(40, 100, 100);
-		cv::Scalar green_upper(80, 255, 255);
-		ImageProcessing::ColorFiltering(images[2], green_lower, green_upper, cv::Scalar(255, 0, 0));
-		// yellow
-		images[3] = images[0].clone();
-		cv::Scalar yellow_lower(20, 100, 100);
-		cv::Scalar yellow_upper(40, 255, 255);
-		ImageProcessing::ColorFiltering(images[3], yellow_lower, yellow_upper, cv::Scalar(255, 0, 0));
-		// red
-		images[4] = images[0].clone();
-		cv::Scalar red_lower(0, 100, 100);
-		cv::Scalar red_upper(10, 255, 255);
-		ImageProcessing::ColorFiltering(images[4], red_lower, red_upper, cv::Scalar(255, 0, 0));
-		// brown
-		images[5] = images[0].clone();
-		cv::Scalar brown_lower(0, 100, 50);
-		cv::Scalar brown_upper(20, 180, 220);
-		ImageProcessing::ColorFiltering(images[5], brown_lower, brown_upper, cv::Scalar(255, 0, 0));
-
-		// Save the processed images with their respective labels
+		// Save
 		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };
 		ImageUtils::SaveImages(destination + names[i], images, transformations);
 
-		// Progression
-		int progress = (i + 1) * 100 / names.size();
-		int numComplete = (progress * 50) / 100;
-		int numRemaining = 50 - numComplete;
-		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
-		std::cout << "\033[A";
+		{
+			// Progression
+			std::lock_guard<std::mutex> lock(ImageUtils::mutex);
+			int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
+			int numComplete = (progress * 50) / 100;
+			int numRemaining = 50 - numComplete;
+			std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+			std::cout << "\033[A";
+		}
 	}
-	std::cout << "\n\r\033[K";
-	std::cout << "\033[A\r\033[K";
-	std::cout << "\033[A\r\033[K";
-	std::cout << "\033[A\r\033[K";
 }
 
-void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destination, int generation)
+void ImageUtils::SaveAFromToDirectory(const std::string& source, const std::string& destination, int generation)
 {
 	// Check if source and destination are provided
 	if (source.empty() || destination.empty() || !std::filesystem::exists(source) || !std::filesystem::is_directory(destination)) {
@@ -186,7 +117,7 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 	std::vector<std::string> names = ImageUtils::GetImagesInDirectory(source, generation);
 	for (auto i = 0; i < names.size(); i++) {
 		// Load an image from the specified file path
-		cv::Mat image = cv::imread(source + names[i], cv::IMREAD_COLOR);
+		cv::Mat image = cv::imread(source + names[i]);
 		if (image.empty()) {
 			throw std::runtime_error("Unable to load the image. " + source + names[i]);
 		}
@@ -207,15 +138,14 @@ void ImageUtils::SaveAFromToDirectory(std::string& source, std::string& destinat
 		std::vector<std::string> labels = { "Rotate", "Distort", "Flip", "Shear", "Scale", "Projective" };
 		ImageUtils::SaveImages(destination + names[i], images, labels);
 
-		// Progression
-		int progress = (i + 1) * 100 / names.size();
-		int numComplete = (progress * 50) / 100;
-		int numRemaining = 50 - numComplete;
-		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
-		std::cout << "\033[A";
+		{
+			// Progression
+			std::lock_guard<std::mutex> lock(ImageUtils::mutex);		
+			int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
+			int numComplete = (progress * 50) / 100;
+			int numRemaining = 50 - numComplete;
+			std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+			std::cout << "\033[A";
+		}
 	}
-	std::cout << "\n\r\033[K";
-	std::cout << "\033[A\r\033[K";
-	std::cout << "\033[A\r\033[K";
-	std::cout << "\033[A\r\033[K";
 }

@@ -6,21 +6,45 @@
 #include <sstream>
 #include <vector>
 
-struct DataInfo {
-	std::vector<std::string> labels;
-	std::vector<double> features;
+struct DataEntry {
 	size_t index;
+	std::string target;
+	std::vector<double> features;
 };
 
 class ModelUtils {
 public:
-	static const std::vector<std::string> types;
+	static const std::vector<std::string> targets;
 
-	static void LoadDataFile(std::vector<DataInfo>& datainfos, const std::string& filename);
-	static void SaveDataFile(const std::string& filename, const std::vector<std::vector<std::string>>& data);
-	static void StandardNormalizationData(std::vector<DataInfo>& data, std::vector<double>& featureMeans, std::vector<double>& featureStdDevs);
-	static void SaveModels(const std::vector<std::vector<double>>& weights, const std::vector<double>& featureMeans, const std::vector<double>& featureStdDevs, const std::string& filename);
-	static void LoadModelInformations(std::vector<std::vector<double>>& weights, std::vector<double>& featureMeans, std::vector<double>& featureStdDevs, const std::string& filename);
+	static void LoadDataFile(
+		std::vector<DataEntry>& database,
+		const std::string& filename);
+
+	static void SaveDataFile(
+		const std::string& filename,
+		const std::vector<DataEntry>& database);
+
+	static void NormalizationZScore(
+		std::vector<DataEntry>& data,
+		std::vector<double>& featureMeans,
+		std::vector<double>& featureStdDevs);
+
+	static void SetupTrainingData(
+		const std::vector<DataEntry>& database,
+		std::vector<std::vector<double>>& weights,
+		std::vector<std::vector<double>>& trainInputs,
+		std::vector<std::vector<double>>& trainTargetsOneHot);
+
+	static std::string SaveModels(
+		const std::vector<std::vector<double>>& weights,
+		const std::vector<double>& featureMeans,
+		const std::vector<double>& featureStdDevs);
+
+	static void LoadModels(
+		std::vector<std::vector<double>>& weights,
+		std::vector<double>& featureMeans,
+		std::vector<double>& featureStdDevs,
+		const std::string& filename);
 };
 
 #endif

@@ -1,10 +1,12 @@
-#include <iostream>
-#include <fstream>
 #include "image_processing.h"
 #include "image_utils.h"
 
-// Function to calculate the proportion of pixels in an intensity range for each channel
-std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityRanges(const cv::Mat& image) {
+#include <iostream>
+#include <fstream>
+#include <filesystem>
+
+std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityRanges(const cv::Mat& image)
+{
 	int channelCount = 6;
 	cv::Mat hsvImage;
 	cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
@@ -46,10 +48,9 @@ std::vector<std::vector<std::pair<int, double>>> calculateProportionInIntensityR
 	return intensityProportions;
 }
 
-// Function to create and execute the Python script for generating the graph
-void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>& proportions) {
-
-	// Create and open a text file for writing
+void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>& proportions)
+{
+	// Create python file
 	std::ofstream pythonScript("script.py");
 	if (!pythonScript.is_open()) {
 		throw std::runtime_error("Erreur : Impossible de créer le fichier Python (script.py).");
@@ -79,38 +80,35 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	pythonScript << "plt.show()";
 	pythonScript.close();
 
-	if (system("python script.py &") != 0) {
+	if (system("python script.py") != 0) {
 		throw std::runtime_error("Error: Failed to execute the Python command.");
 	}
 }
 
-
-
-void display(const std::string& source) {
-
-	// Load an image from the specified file path
-	cv::Mat originalImage = cv::imread(source, cv::IMREAD_COLOR);
+void display(const std::string& source)
+{
+	// Load image
+	cv::Mat originalImage = cv::imread(source);
 	if (originalImage.empty()) {
 		throw std::runtime_error("Unable to load the image. " + source);
 	}
-	std::vector<cv::Mat> images;
 
-	// Create a vector to store multiple copies of the loaded image
-	for (int i = 0; i < 7; i++) {
+	// Process images
+	std::vector<cv::Mat> images;
+	images.push_back(originalImage.clone());
+	ImageProcessing::ExtractLeafAndRescale(originalImage);	
+	for (int i = 0; i < 6; i++) {
 		images.push_back(originalImage.clone());
 	}
+	ImageProcessing::ConvertToGray(images[2]);
+	ImageProcessing::EqualizeHistogramColor(images[3]);
+	ImageProcessing::DetectORBKeyPoints(images[4]);
+	ImageProcessing::EqualizeHistogramValue(images[5]);
+	ImageProcessing::EqualizeHistogramSaturation(images[6]);
 
-	// Apply transformations
-	ImageProcessing::ConvertToGray(images[1]);
-	ImageProcessing::BinarizeImage(images[2]);
-	ImageProcessing::ExtractYChannel(images[3]);
-	ImageProcessing::ApplyCannyEdgeDetection(images[4]);
-	ImageProcessing::ApplyGaussianBlur(images[5], 5);
-	ImageProcessing::ApplyContrastEnhancement(images[6], 2.0);
-
-	// Save the processed images with their respective labels
-	std::vector<std::string> labels = { "Original", "T1", "T2", "T3", "T4", "T5", "T6" };
-	ImageUtils::ShowMosaic(images, "Transformation", labels);
+	// Show the processed images
+	std::vector<std::string> transformations = { "Original", "T1", "T2", "T3", "T4", "T5", "T6" };
+	ImageUtils::ShowMosaic(images, "Transformation", transformations);
 	cv::waitKey(1);
 
 	// Calculate intensity proportions and generate the graph
@@ -119,14 +117,79 @@ void display(const std::string& source) {
 	cv::waitKey(0);
 }
 
-int main(int argc, char* argv[]) {
+void transformation(const std::string& source, const std::string& destination, int generation)
+{
+	// Check if destination already exists
+	if (std::filesystem::exists(destination)) {
+		if (!std::filesystem::is_directory(destination)) {
+			throw std::runtime_error("Destination already exists, but it's not a directory.");
+		}
+	}
+	else {
+		std::filesystem::create_directory(destination);
+	}
+
+	// Process
+	std::vector<std::string> imageNames = ImageUtils::GetImagesInDirectory(source, generation);
+	for (auto i = 0; i < imageNames.size(); i++) {
+
+		// Load image
+		cv::Mat originalImage = cv::imread(source + imageNames[i]);
+		if (originalImage.empty()) {
+			throw std::runtime_error("Unable to load the image. " + source + imageNames[i]);
+		}
+
+		// Process images
+		std::vector<cv::Mat> images;
+		ImageProcessing::ExtractLeafAndRescale(originalImage);		
+		for (int i = 0; i < 6; i++) {
+			images.push_back(originalImage.clone());
+		}
+		ImageProcessing::ConvertToGray(images[1]);
+		ImageProcessing::EqualizeHistogramColor(images[2]);
+		ImageProcessing::DetectORBKeyPoints(images[3]);
+		ImageProcessing::EqualizeHistogramValue(images[4]);
+		ImageProcessing::EqualizeHistogramSaturation(images[5]);
+
+		// Save the processed images
+		std::vector<std::string> transformations = { "T1", "T2", "T3", "T4", "T5", "T6" };
+		const std::string destinationPath = destination + imageNames[i];
+		const size_t lastSlashPos = destinationPath.find_last_of('/');
+		const size_t lastPointPos = destinationPath.find_last_of('.');
+		const std::string saveDir = destinationPath.substr(0, lastSlashPos + 1);
+		const std::string imgName = destinationPath.substr(lastSlashPos + 1, lastPointPos - lastSlashPos - 1);
+		for (int i = 0; i < images.size(); i++) {
+			const std::string outputFilename = saveDir + imgName + "_" + transformations[i] + ".JPG";
+			cv::imwrite(outputFilename, images[i], { cv::IMWRITE_JPEG_QUALITY, 100 });
+			std::cout << "\r\033[K" << "Saved : " << outputFilename << std::flush;
+		}
+
+		// Progression
+		int progress = (i + 1) * 100 / imageNames.size();
+		int numComplete = (progress * 50) / 100;
+		int numRemaining = 50 - numComplete;
+		std::cout << "\n[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%" << std::flush;
+		std::cout << "\033[A";
+	}
+	std::cout << "\n\r\033[K\033[A\r\033[K";
+}
+
+int main(int argc, char* argv[])
+{
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory/source_image> -dst <destination_directory> [-gen <generation_max>]");
-
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory> -dst <destination_directory> -gen <generation_max>");
 		}
-		std::string source;
-		std::string destination;
+		// Apple_Black_rot     620 files
+		// Apple_healthy       1640 files
+		// Apple_rust          275 files
+		// Apple_scab          629 files
+		// Grape_Black_rot     1178 files
+		// Grape_Esca          1382 files
+		// Grape_healthy       422 files
+		// Grape_spot          1075 files
+		std::string source = "images/Apple_Black_rot/";
+		std::string destination = "images/transformed_directory/";
 		int generation = 1640;
 
 		// Parse command-line arguments
@@ -153,24 +216,10 @@ int main(int argc, char* argv[]) {
 				++i;
 			}
 			else if (arg == "-h") {
-				std::cout << "Usage: " << argv[0] << " -src <source_directory/source_image> -dst <destination_directory>  [-gen <generation_max>]" << std::endl;
+				std::cout << "Usage: " << argv[0] << " -src <source_directory> -dst <destination_directory> -gen <generation_max>" << std::endl;
 				return 0;
 			}
 		}
-#ifdef _MSC_VER
-		// Apple_Black_rot     620 files
-		// Apple_healthy       1640 files
-		// Apple_rust          275 files
-		// Apple_scab          629 files
-		// Grape_Black_rot     1178 files
-		// Grape_Esca          1382 files
-		// Grape_healthy       422 files
-		// Grape_spot          1075 files
-		source = "images/Grape_Black_rot/";
-		destination = "images/test";
-#endif
-
-		// Check if source is a .JPG file
 		if (source.length() > 4 && source.substr(source.length() - 4) == ".JPG") {
 			display(source);
 		}
@@ -181,7 +230,7 @@ int main(int argc, char* argv[]) {
 			if (destination.back() != '/') {
 				destination += "/";
 			}
-			ImageUtils::SaveTFromToDirectory(source, destination, generation);
+			transformation(source, destination, generation);
 		}
 	}
 	catch (const std::exception& e) {

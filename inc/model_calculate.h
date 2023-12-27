@@ -5,40 +5,52 @@
 #include <unordered_map>
 #include <string>
 
-struct DataInfo;
+struct DataEntry;
 
-class ModelCalculate {
+class ModelCalculate
+{
 public:
-	static double Mean(const std::vector<double>& data);
+	static void GenerateModels(
+		std::vector<DataEntry>& database,
+		std::vector<std::vector<double>>& weights,
+		std::vector<double>& featureMeans,
+		std::vector<double>& featureStdDevs);
 
-	static double StandardDeviation(const std::vector<double>& data);
+	static double LogisticRegressionHypothesis(
+		const std::vector<double>& weights,
+		const std::vector<double>& inputs);
+private:
 
-	static double LogisticRegressionHypothesis(const std::vector<double>& weights, const std::vector<double>& inputs);
-
-	static std::vector<double> Accuracy(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& types,
+	static std::vector<double> Accuracy(
+		const std::vector<std::vector<double>>& inputs,
+		const std::vector<std::vector<double>>& types,
 		const std::vector<std::vector<double>>& weights);
 
-	static double LossFunction(const std::vector<std::vector<double>>& inputs, const std::vector<std::vector<double>>& weights,
-		const std::vector<std::vector<double>>& target, const size_t type);
+	static double LossFunction(
+		const std::vector<std::vector<double>>& inputs,
+		const std::vector<std::vector<double>>& weights,
+		const std::vector<std::vector<double>>& target,
+		const size_t type);
 
-	static double LossFunctionPartialDerivative(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
-		const std::vector<std::vector<double>>& target, const size_t type, const size_t j);
-
-	static void GradientDescent(const std::vector<std::vector<double>>& inputs, std::vector<std::vector<double>>& weights,
-		const std::vector<std::vector<double>>& target, const size_t type);
-
-	static void LogisticRegressionOneHotTrainning(
+	static double LossFunctionPartialDerivative(
+		const std::vector<std::vector<double>>& inputs,
 		std::vector<std::vector<double>>& weights,
-		const std::vector<std::vector<double>>& trainingInputs,
-		const std::vector<std::vector<double>>& validationInputs,
-		const std::vector<std::vector<double>>& trainingOneHot,
-		const std::vector<std::vector<double>>& validationOneHot,
-		const size_t epochs);
+		const std::vector<std::vector<double>>& target,
+		const size_t type, const size_t j);
 
-	static void SetupTrainingData(const std::vector<DataInfo>& dataBase, std::vector<std::vector<double>>& weights,
-		std::vector<std::vector<double>>& trainingInputs, std::vector<std::vector<double>>& trainingOneHot);
-	
-	static void CreateModel(std::vector<DataInfo>& dataBase);
+	static void GradientDescent(
+		const std::vector<std::vector<double>>& inputs,
+		std::vector<std::vector<double>>& weights,
+		const std::vector<std::vector<double>>& target,
+		const size_t type);
+
+	static void LogisticRegressionTargetsOneHotTraining(
+		std::vector<std::vector<double>>& weights,
+		const std::vector<std::vector<double>>& trainInputs,
+		const std::vector<std::vector<double>>& validInputs,
+		const std::vector<std::vector<double>>& trainTargetsOneHot,
+		const std::vector<std::vector<double>>& validTargetsOneHot,
+		const size_t epochs);
 };
 
 #endif

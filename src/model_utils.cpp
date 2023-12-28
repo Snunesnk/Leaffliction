@@ -52,26 +52,21 @@ void ModelUtils::LoadDataFile(
 		throw std::runtime_error("Unable to open " + filename);
 	}
 
-	try {
-		std::string entry;
-		while (std::getline(inputfile, entry)) {
-			std::istringstream linestream(entry);
-			std::string element;
-			std::vector<std::string> row;
-			while (std::getline(linestream, element, ',')) {
-				row.push_back(element);
-			}
-			DataEntry entry;
-			entry.index = std::stoi(row[0]);
-			entry.target = row[1];
-			for (size_t i = 2; i < row.size(); i++) {
-				entry.features.push_back(std::stod(row[i]));
-			}
-			database.push_back(entry);
+	std::string entry;
+	while (std::getline(inputfile, entry)) {
+		std::istringstream linestream(entry);
+		std::string element;
+		std::vector<std::string> row;
+		while (std::getline(linestream, element, ',')) {
+			row.push_back(element);
 		}
-	}
-	catch (...) {
-		throw std::runtime_error("Wrong data from " + filename);
+		DataEntry entry;
+		entry.index = std::stoi(row[0]);
+		entry.target = row[1];
+		for (size_t i = 2; i < row.size(); i++) {
+			entry.features.push_back(std::stod(row[i]));
+		}
+		database.push_back(entry);
 	}
 
 	inputfile.close();
@@ -196,7 +191,6 @@ void ModelUtils::LoadModels(
 		return;
 	}
 
-	// Clear existing data
 	weights.clear();
 	featureMeans.clear();
 	featureStdDevs.clear();

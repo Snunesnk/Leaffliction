@@ -251,6 +251,9 @@ void ImageProcessing::ExtractLeafAndRescale(cv::Mat& image)
 	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
 	contours = std::vector<std::vector<cv::Point>>();
 	cv::findContours(grayImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+	if (contours.empty()) {
+		return;
+	}
 	cv::Mat mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 	cv::fillPoly(mask, contours, cv::Scalar(255));
 	originalImage.copyTo(image, mask);
@@ -260,6 +263,9 @@ void ImageProcessing::ExtractLeafAndRescale(cv::Mat& image)
 	cv::erode(image, image, element, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
 	cv::cvtColor(image, grayImage, cv::COLOR_BGR2GRAY);
 	cv::findContours(grayImage, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	if (contours.empty()) {
+		return;
+	}
 	mask = cv::Mat::zeros(originalImage.size(), CV_8UC1);
 	cv::fillPoly(mask, contours, cv::Scalar(255));
 	originalImage.copyTo(image, mask);

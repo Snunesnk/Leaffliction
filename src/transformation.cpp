@@ -81,7 +81,7 @@ void generateGraphScript(const std::vector<std::vector<std::pair<int, double>>>&
 	pythonScript.close();
 
 	if (system("python script.py") != 0) {
-		throw std::runtime_error("Error: Failed to execute the Python command.");
+		throw std::runtime_error("Failed to execute the Python command.");
 	}
 }
 
@@ -90,17 +90,17 @@ void display(const std::string& source)
 	// Load image
 	cv::Mat originalImage = cv::imread(source);
 	if (originalImage.empty()) {
-		throw std::runtime_error("Unable to load the image. " + source);
+		throw std::runtime_error("Unable to load the image.");
 	}
 
 	// Process images
 	std::vector<cv::Mat> images;
 	images.push_back(originalImage.clone());
-	ImageProcessing::ExtractLeafAndRescale(originalImage);	
+	ImageProcessing::ExtractLeafAndRescale(originalImage);
 	for (int i = 0; i < 6; i++) {
 		images.push_back(originalImage.clone());
 	}
-	ImageProcessing::ConvertToGray(images[2]);
+	cv::GaussianBlur(images[2], images[2], { 5, 5 }, 0);
 	ImageProcessing::EqualizeHistogramColor(images[3]);
 	ImageProcessing::DetectORBKeyPoints(images[4]);
 	ImageProcessing::EqualizeHistogramValue(images[5]);
@@ -136,16 +136,16 @@ void transformation(const std::string& source, const std::string& destination, i
 		// Load image
 		cv::Mat originalImage = cv::imread(source + imageNames[i]);
 		if (originalImage.empty()) {
-			throw std::runtime_error("Unable to load the image. " + source + imageNames[i]);
+			throw std::runtime_error("Unable to load the image.");
 		}
 
 		// Process images
 		std::vector<cv::Mat> images;
-		ImageProcessing::ExtractLeafAndRescale(originalImage);		
+		ImageProcessing::ExtractLeafAndRescale(originalImage);
 		for (int i = 0; i < 6; i++) {
 			images.push_back(originalImage.clone());
 		}
-		ImageProcessing::ConvertToGray(images[1]);
+		cv::GaussianBlur(images[1], images[1], { 5, 5 }, 0);
 		ImageProcessing::EqualizeHistogramColor(images[2]);
 		ImageProcessing::DetectORBKeyPoints(images[3]);
 		ImageProcessing::EqualizeHistogramValue(images[4]);
@@ -178,7 +178,7 @@ int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory> -dst <destination_directory> -gen <generation_max>");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " <source_path> -dst <destination_path> -gen <num_generations>");
 		}
 		// Apple_Black_rot     620 files
 		// Apple_healthy       1640 files
@@ -188,35 +188,26 @@ int main(int argc, char* argv[])
 		// Grape_Esca          1382 files
 		// Grape_healthy       422 files
 		// Grape_spot          1075 files
-		std::string source = "images/Apple_Black_rot/";
+		std::string source = argv[1];
 		std::string destination = "images/transformed_directory/";
 		int generation = 1640;
 
 		// Parse command-line arguments
 		for (int i = 1; i < argc; ++i) {
 			std::string arg = argv[i];
-			if (arg == "-src" && i + 1 < argc) {
-				source = argv[i + 1];
-				++i;
-			}
-			else if (arg == "-dst" && i + 1 < argc) {
+			if (arg == "-dst" && i + 1 < argc) {
 				destination = argv[i + 1];
 				++i;
 			}
 			else if (arg == "-gen" && i + 1 < argc) {
-				try {
-					generation = std::atoi(argv[i + 1]);
-					if (generation > 1640) {
-						generation = 1640;
-					}
-				}
-				catch (...) {
-					throw std::runtime_error("Unable to read the -gen value.");
+				generation = std::atoi(argv[i + 1]);
+				if (generation > 1640) {
+					generation = 1640;
 				}
 				++i;
 			}
 			else if (arg == "-h") {
-				std::cout << "Usage: " << argv[0] << " -src <source_directory> -dst <destination_directory> -gen <generation_max>" << std::endl;
+				std::cout << "Usage: " << argv[0] << " <source_path> -dst <destination_path> -gen <num_generations>" << std::endl;
 				return 0;
 			}
 		}
@@ -235,7 +226,6 @@ int main(int argc, char* argv[])
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;
-		std::cerr << "Use -h for help." << std::endl;
 		return 1;
 	}
 	return 0;

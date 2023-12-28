@@ -98,10 +98,11 @@ void processImagesInDirectory(const std::string& source, const std::vector<doubl
 						std::cout << "\r\033[K" << "\033[31m" << " WRONG : " << ImageUtils::numComplete - ImageUtils::progress << "\033[0m ";
 						std::cout << (1.0 - ((double)ImageUtils::progress / ImageUtils::numComplete)) * 100.0 << std::flush;
 					}
+					std::cout << "\033[" << 3 << ";0H";
 				}
 			}
 		}});
-	std::cout << "\033[" << 3 << ";0H";
+	
 }
 
 void predictTarget(const std::string& source, const std::vector<double>& featureMeans, const std::vector<double>& featureStdDevs, const std::vector<std::vector<double>>& weights)
@@ -111,6 +112,7 @@ void predictTarget(const std::string& source, const std::vector<double>& feature
 	if (originalImage.empty()) {
 		throw std::runtime_error("Unable to load image.");
 	}
+
 	// Get transformed images
 	std::vector<cv::Mat> images;
 	images.push_back(originalImage.clone());
@@ -125,8 +127,10 @@ void predictTarget(const std::string& source, const std::vector<double>& feature
 			throw std::runtime_error("Unable to load transformed image.");
 		}
 	}
+
 	// Create entry
 	DataEntry dataEntry;
+
 	// Add one-hot
 	size_t lastSlash = source.rfind('/');
 	size_t secondLastSlash = source.rfind('/', lastSlash - 1);
@@ -158,7 +162,8 @@ void predictTarget(const std::string& source, const std::vector<double>& feature
 			newFeatures.push_back((dataEntry.features[i] - featureMeans[i]) / featureStdDevs[i]);
 		}
 	}
-	dataEntry.features = newFeatures;
+	dataEntry.features = std::move(newFeatures);
+
 	// Check accuracy
 	double maxProbability = -1.0;
 	size_t predictedTarget = 0;
@@ -169,16 +174,8 @@ void predictTarget(const std::string& source, const std::vector<double>& feature
 			predictedTarget = j;
 		}
 	}
-	cv::Scalar color;
-	std::string text;
-	if (targetOneHot[predictedTarget] == 1) {
-		text = "Successful prediction: " + ModelUtils::targets[predictedTarget];
-		color = cv::Scalar(0, 255, 0);
-	}
-	else {
-		text = "Incorrect prediction: " + ModelUtils::targets[predictedTarget];
-		color = cv::Scalar(0, 0, 255);
-	}
+	const std::string text = "Prediction: " + ModelUtils::targets[predictedTarget];
+
 	// Show
 	cv::Mat predict(originalImage.rows + 80, static_cast<int>(originalImage.cols * 2 + 60), originalImage.type(), cv::Scalar(0, 0, 0));
 	originalImage.copyTo(predict(cv::Rect(20, 20, originalImage.cols, originalImage.rows)));
@@ -188,7 +185,7 @@ void predictTarget(const std::string& source, const std::vector<double>& feature
 	const int textWidthText = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, fontSize, thickness, 0).width;
 	const int xPosText = (predict.cols - textWidthText) / 2;
 	const int yPosText = predict.rows - 20;
-	cv::putText(predict, text, cv::Point(xPosText, yPosText), cv::FONT_HERSHEY_SIMPLEX, fontSize, color, thickness);
+	cv::putText(predict, text, cv::Point(xPosText, yPosText), cv::FONT_HERSHEY_SIMPLEX, fontSize, cv::Scalar(0, 255, 0), thickness);
 	cv::imshow("Predict", predict);
 	cv::waitKey(0);
 }
@@ -196,25 +193,12 @@ void predictTarget(const std::string& source, const std::vector<double>& feature
 int main(int argc, char* argv[])
 {
 	try {
-		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory>");
+		if (argc != 2) {
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " <source_path>");
 		}
-		std::string source;
+		std::string source = argv[1];
 
-		// Parse command-line arguments
-		for (int i = 1; i < argc; ++i) {
-			std::string arg = argv[i];
-			if (arg == "-src" && i + 1 < argc) {
-				source = argv[i + 1];
-				++i;
-			}
-			else if (arg == "-h") {
-				std::cout << "Usage: " << argv[0] << " -src <source_directory>" << std::endl;
-				return 0;
-			}
-		}
-
-		source = "images";
+		//source = "images/test/image (550).JPG";
 
 		std::vector<std::vector<double>> weights;
 		std::vector<double> featureMeans;
@@ -234,7 +218,6 @@ int main(int argc, char* argv[])
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;
-		std::cerr << "Use -h for help." << std::endl;
 		return 1;
 	}
 	return 0;

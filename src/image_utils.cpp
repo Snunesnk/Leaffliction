@@ -8,6 +8,30 @@ std::mutex ImageUtils::mutex;
 int ImageUtils::progress;
 int ImageUtils::numComplete;
 
+void ImageUtils::ShowMosaic(const std::vector<cv::Mat>& images, const std::string& name, const std::vector<std::string>& targets)
+{
+	const double FontSize = 0.75;
+	const double Thickness = 1;
+
+	std::vector<cv::Mat> cols;
+	for (int j = 0; j < images.size(); j++) {
+
+		const cv::Mat image = images[j];
+		const std::string target = targets[j];
+		cv::Mat mosaicImage(image.rows + 30, image.cols, CV_8UC3, cv::Scalar(0, 0, 0));
+		image.copyTo(mosaicImage(cv::Rect(0, 30, image.cols, image.rows)));
+
+		const int textWidth = cv::getTextSize(target, cv::FONT_HERSHEY_SIMPLEX, FontSize, Thickness, 0).width;
+		const int xPos = (mosaicImage.cols - textWidth) / 2;
+		cv::putText(mosaicImage, target, cv::Point(xPos, 20), cv::FONT_HERSHEY_SIMPLEX, FontSize, cv::Scalar(255, 255, 255), Thickness);
+
+		cols.push_back(mosaicImage);
+	}
+	cv::Mat mosaic;
+	cv::hconcat(cols, mosaic);
+	cv::imshow(name, mosaic);
+}
+
 void ImageUtils::SaveImages(const std::string& filePath, const std::vector<cv::Mat>& images, const std::vector<std::string>& types)
 {
 	const size_t lastSlashPos = filePath.find_last_of('/');
@@ -43,18 +67,11 @@ std::vector<std::string> ImageUtils::GetImagesInDirectory(const std::string& dir
 	std::sort(images.begin(), images.end(), [](const std::string& a, const std::string& b) {
 		size_t posA = a.find(')');
 		size_t posB = b.find(')');
-
 		std::string numeroA = a.substr(a.find('(') + 1, posA - a.find('(') - 1);
 		std::string numeroB = b.substr(b.find('(') + 1, posB - b.find('(') - 1);
-
-		try {
-			int intA = std::stoi(numeroA);
-			int intB = std::stoi(numeroB);
-			return intA < intB;
-		}
-		catch (...) {
-			throw std::runtime_error("Error filename");
-		}
+		int intA = std::stoi(numeroA);
+		int intB = std::stoi(numeroB);
+		return intA < intB;
 		}
 	);
 
@@ -176,6 +193,4 @@ void ImageUtils::SaveAFromToDirectory(const std::string& source, const std::stri
 			std::cout << "\033[A";
 		}
 	}
-
-
 }

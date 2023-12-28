@@ -61,10 +61,7 @@ std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(
 				}
 			}
 		}
-		catch (const std::invalid_argument&) {
-			result.emplace_back(segment, "");
-		}
-		catch (const std::out_of_range&) {
+		catch (...) {
 			result.emplace_back(segment, "");
 		}
 	}
@@ -112,7 +109,7 @@ int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory>");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_path>");
 		}
 		std::string directoryPath = argv[1];
 		std::cout << directoryPath << std::endl;

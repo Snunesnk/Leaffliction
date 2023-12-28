@@ -65,14 +65,9 @@ void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int 
 				std::sort(imageGroup.begin() + 1, imageGroup.end(), [](const std::string& a, const std::string& b) {
 					std::string numeroA = a.substr(a.length() - 5, 1);
 					std::string numeroB = b.substr(b.length() - 5, 1);
-					try {
-						int intA = std::stoi(numeroA);
-						int intB = std::stoi(numeroB);
-						return intA < intB;
-					}
-					catch (...) {
-						throw std::runtime_error("Error: stoi crash");
-					}
+					int intA = std::stoi(numeroA);
+					int intB = std::stoi(numeroB);
+					return intA < intB;
 					});
 			}
 			});
@@ -80,7 +75,7 @@ void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int 
 		// Generate database
 		for (auto& imageGroup : imageGroups) {
 			if (imageGroup.size() != 7) {
-				continue;
+				throw std::runtime_error("Strange error");
 			}
 			DataEntry dataEntry;
 			std::vector<std::vector<double>> featureGroups(imageGroup.size());
@@ -245,12 +240,7 @@ void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystem
 					if (imageName.find('_') != std::string::npos && entry.is_regular_file() && entry.path().extension() == ".JPG") {
 						// calculate the relative path with respect to the base directory
 						std::string relativePath = std::filesystem::relative(entry.path(), source).generic_string();
-						try {
-							zip.write(entry.path().string(), relativePath);
-						}
-						catch (const std::exception& e) {
-							throw std::runtime_error("error adding file to zip: " + entry.path().string() + " - " + e.what());
-						}
+						zip.write(entry.path().string(), relativePath);
 						{
 							std::lock_guard<std::mutex> lock(ImageUtils::mutex);
 							int progress = (++ImageUtils::progress) * 100 / ImageUtils::numComplete;
@@ -289,7 +279,7 @@ int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -gen <generation_max> -csv <csv_path> --data");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " <source_path> -gen <generation_max> -csv <csv_path>");
 		}
 		// Apple_Black_rot     620 files
 		// Apple_healthy       1640 files
@@ -299,36 +289,24 @@ int main(int argc, char* argv[])
 		// Grape_Esca          1382 files
 		// Grape_healthy       422 files
 		// Grape_spot          1075 files
-		std::string source;
-		std::string csv = "data.csv";
+		std::string source = argv[1];
+		std::string csv;// = "data.csv";
 		int generation = 1640;
-		bool reset = true;
+		bool reset = false;
 
 		// Parse command-line arguments
-		source = argv[1];
-		if (source.back() != '/') {
-			source += "/";
-		}
 		for (int i = 2; i < argc; ++i) {
 			std::string arg = argv[i];
 			if (arg == "-gen" && i + 1 < argc) {
-				try {
-					generation = std::atoi(argv[i + 1]);
-					if (generation > 1640) {
-						generation = 1640;
-					}
-				}
-				catch (...) {
-					throw std::runtime_error("Unable to read the -gen value.");
+				generation = std::atoi(argv[i + 1]);
+				if (generation > 1640) {
+					generation = 1640;
 				}
 				++i;
 			}
 			else if (arg == "-csv" && i + 1 < argc) {
 				csv = arg[i + 1];
 				++i;
-			}
-			else if (arg == "--data") {
-				reset = false;
 			}
 			else if (arg == "-h") {
 				std::cout << "Usage: " << argv[0] << " -gen <generation_max> -csv <csv_path> --data" << std::endl;

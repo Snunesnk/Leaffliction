@@ -112,7 +112,7 @@ void ModelCalculate::GradientDescent(
 		tmp_weights[target][j] -= learningRate * derivative;
 	}
 	// Update weights after calculating all partial derivatives
-	weights[target] = tmp_weights[target];
+	weights[target] = std::move(tmp_weights[target]);
 }
 
 void ModelCalculate::LogisticRegressionTargetsOneHotTraining(
@@ -160,48 +160,47 @@ void ModelCalculate::GenerateModels(
 	std::vector<double>& featureMeans,
 	std::vector<double>& featureStdDevs)
 {
-	try {
-		std::cout << "\r\033[K" << "Models training..." << std::endl;
-		auto featuresBeforeFilter = database[0].features.size();
-		ModelUtils::NormalizationZScore(database, featureMeans, featureStdDevs);
-		int featuresAfterFilter = database[0].features.size();
-		int featuresRemoved = featuresBeforeFilter - featuresAfterFilter;
-		std::cout << "Number of features after filtering: " << featuresAfterFilter << " (" << featuresRemoved << " has been removed)" << std::endl;
-		std::vector<std::vector<double>> weights(ModelUtils::targets.size(), std::vector<double>(database[0].features.size(), 0.0));
-		std::vector<std::vector<double>> trainInputs, trainTargetsOneHot, validInputs, validTargetsOneHot;
-		ModelUtils::SetupTrainingData(database, weights, trainInputs, trainTargetsOneHot);
-		std::cout << "Inputs : " << trainInputs.size() << std::endl;
-		std::random_device rd;
-		std::mt19937 gen(rd());
-		const size_t numTargets = trainInputs.size() / 8;
-		const size_t forValidation = numTargets / 5;
-		std::unordered_set<int> selectedIndices;
-		for (int c = 1; c <= 8; c++) {
-			while (selectedIndices.size() < forValidation * c) {
-				int randomIndex = std::uniform_int_distribution<int>(numTargets * (c - 1), numTargets * c - 1)(gen);
-				selectedIndices.insert(randomIndex);
-			}
+	std::cout << "\r\033[K" << "Models training..." << std::endl;
+
+	auto featuresBeforeFilter = database[0].features.size();
+	ModelUtils::NormalizationZScore(database, featureMeans, featureStdDevs);
+	int featuresAfterFilter = database[0].features.size();
+	int featuresRemoved = featuresBeforeFilter - featuresAfterFilter;
+	std::cout << "Number of features after filtering: " << featuresAfterFilter << " (" << featuresRemoved << " has been removed)" << std::endl;
+
+	std::vector<std::vector<double>> weights(ModelUtils::targets.size(), std::vector<double>(database[0].features.size(), 0.0));
+	std::vector<std::vector<double>> trainInputs, trainTargetsOneHot, validInputs, validTargetsOneHot;
+	ModelUtils::SetupTrainingData(database, weights, trainInputs, trainTargetsOneHot);
+
+	std::cout << "Inputs : " << trainInputs.size() << std::endl;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	const size_t numTargets = trainInputs.size() / 8;
+	const size_t forValidation = numTargets / 5;
+	std::unordered_set<int> selectedIndices;
+	for (int c = 1; c <= 8; c++) {
+		while (selectedIndices.size() < forValidation * c) {
+			int randomIndex = std::uniform_int_distribution<int>(numTargets * (c - 1), numTargets * c - 1)(gen);
+			selectedIndices.insert(randomIndex);
 		}
-		std::vector<decltype(trainInputs)::value_type> newTrainInputs, newTrainTargetsOneHot;
-		for (size_t i = 0; i < trainInputs.size(); ++i) {
-			if (selectedIndices.find(i) == selectedIndices.end()) {
-				newTrainInputs.push_back(trainInputs[i]);
-				newTrainTargetsOneHot.push_back(trainTargetsOneHot[i]);
-			}
-			else {
-				validInputs.push_back(trainInputs[i]);
-				validTargetsOneHot.push_back(trainTargetsOneHot[i]);
-			}
+	}
+	std::vector<decltype(trainInputs)::value_type> newTrainInputs, newTrainTargetsOneHot;
+	for (size_t i = 0; i < trainInputs.size(); ++i) {
+		if (selectedIndices.find(i) == selectedIndices.end()) {
+			newTrainInputs.push_back(trainInputs[i]);
+			newTrainTargetsOneHot.push_back(trainTargetsOneHot[i]);
 		}
-		trainInputs = newTrainInputs;
-		trainTargetsOneHot = newTrainTargetsOneHot;
-		std::cout << "For train : " << trainInputs.size() << std::endl;
-		std::cout << "For valid : " << validInputs.size() << std::endl;
-		ModelCalculate::LogisticRegressionTargetsOneHotTraining(weights, trainInputs, validInputs, trainTargetsOneHot, validTargetsOneHot, 200);
-		weightsAfterTraining = weights;
+		else {
+			validInputs.push_back(trainInputs[i]);
+			validTargetsOneHot.push_back(trainTargetsOneHot[i]);
+		}
 	}
-	catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
-		return;
-	}
+	trainInputs = newTrainInputs;
+	trainTargetsOneHot = newTrainTargetsOneHot;
+	std::cout << "For train : " << trainInputs.size() << std::endl;
+	std::cout << "For valid : " << validInputs.size() << std::endl;
+
+	ModelCalculate::LogisticRegressionTargetsOneHotTraining(weights, trainInputs, validInputs, trainTargetsOneHot, validTargetsOneHot, 200);
+
+	weightsAfterTraining = weights;
 }

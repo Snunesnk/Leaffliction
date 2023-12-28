@@ -4,7 +4,8 @@
 #include <iostream>
 #include <filesystem>
 
-void display(const std::string& source, std::string& destination) {
+void display(const std::string& source, std::string& destination)
+{
 
 	// Load image 
 	cv::Mat image = cv::imread(source);
@@ -49,7 +50,7 @@ void augmentation(const std::string& source, const std::string& destination, int
 		// Load image
 		cv::Mat originalImage = cv::imread(source + imageNames[i]);
 		if (originalImage.empty()) {
-			throw std::runtime_error("Unable to load the image. " + source + imageNames[i]);
+			throw std::runtime_error("Unable to load the image.");
 		}
 
 		// Process images
@@ -87,10 +88,11 @@ void augmentation(const std::string& source, const std::string& destination, int
 	std::cout << "\n\r\033[K\033[A\r\033[K";
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 	try {
 		if (argc < 2) {
-			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_directory> -dst <destination_directory> -gen <generation_max>");
+			throw std::runtime_error("Usage: " + (std::string)argv[0] + " <source_path> -dst <destination_path> -gen <num_generations>");
 		}
 		// Apple_Black_rot     620 files
 		// Apple_healthy       1640 files
@@ -100,35 +102,26 @@ int main(int argc, char* argv[]) {
 		// Grape_Esca          1382 files
 		// Grape_healthy       422 files
 		// Grape_spot          1075 files
-		std::string source = "images/Apple_Black_rot/";
+		std::string source = argv[1];
 		std::string destination = "images/augmented_directory/";
 		int generation = 1640;
 
 		// Parse command-line arguments
 		for (int i = 1; i < argc; ++i) {
 			std::string arg = argv[i];
-			if (arg == "-src" && i + 1 < argc) {
-				source = argv[i + 1];
-				++i;
-			}
-			else if (arg == "-dst" && i + 1 < argc) {
+			if (arg == "-dst" && i + 1 < argc) {
 				destination = argv[i + 1];
 				++i;
 			}
 			else if (arg == "-gen" && i + 1 < argc) {
-				try {
-					generation = std::atoi(argv[i + 1]);
-					if (generation > 1640) {
-						generation = 1640;
-					}
-				}
-				catch (...) {
-					throw std::runtime_error("Unable to read the -gen value.");
+				generation = std::atoi(argv[i + 1]);
+				if (generation > 1640) {
+					generation = 1640;
 				}
 				++i;
 			}
 			else if (arg == "-h") {
-				std::cout << "Usage: " << argv[0] << " -src <source_directory> -dst <destination_directory> -gen <generation_max>" << std::endl;
+				std::cout << "Usage: " << argv[0] << " <source_path> -dst <destination_path> -gen <num_generations>" << std::endl;
 				return 0;
 			}
 		}
@@ -147,7 +140,6 @@ int main(int argc, char* argv[]) {
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;
-		std::cerr << "Use -h for help." << std::endl;
 		return 1;
 	}
 	return 0;

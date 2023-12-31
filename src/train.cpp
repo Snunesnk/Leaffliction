@@ -291,8 +291,8 @@ int main(int argc, char* argv[])
 		// Grape_spot          1075 files
 		std::string source = argv[1];
 		std::string csv;// = "data.csv";
-		int generation = 1640;
-		bool reset = false;
+		int generation = 500;
+		bool reset = true;
 
 		// Parse command-line arguments
 		for (int i = 2; i < argc; ++i) {

@@ -3,7 +3,6 @@
 
 #include <filesystem>
 
-
 std::mutex ImageUtils::mutex;
 int ImageUtils::progress;
 int ImageUtils::numComplete;
@@ -18,7 +17,7 @@ void ImageUtils::ShowMosaic(const std::vector<cv::Mat>& images, const std::strin
 
 		const cv::Mat image = images[j];
 		const std::string target = targets[j];
-		cv::Mat mosaicImage(image.rows + 30, image.cols, CV_8UC3, cv::Scalar(0, 0, 0));
+		cv::Mat mosaicImage(image.rows + 30, image.cols, image.type(), cv::Scalar(0, 0, 0));
 		image.copyTo(mosaicImage(cv::Rect(0, 30, image.cols, image.rows)));
 
 		const int textWidth = cv::getTextSize(target, cv::FONT_HERSHEY_SIMPLEX, FontSize, Thickness, 0).width;

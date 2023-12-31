@@ -4,7 +4,7 @@
 #include <iostream>
 #include <random>
 #include <iomanip>
-#include <execution>
+#include <opencv2/opencv.hpp>
 #include <unordered_set>
 
 std::vector<double> ModelCalculate::Accuracy(
@@ -134,9 +134,10 @@ void ModelCalculate::LogisticRegressionTargetsOneHotTraining(
 	// Training
 	for (size_t epoch = 0; epoch < epochs; ++epoch) {
 
-		std::for_each(std::execution::par, targetIndices.begin(), targetIndices.end(), [&](int target) {
-			ModelCalculate::GradientDescent(trainInputs, weights, trainTargetsOneHot, target);
-			});
+		cv::parallel_for_(cv::Range(0, numTargets), [&](const cv::Range& range) {
+			for (int target = range.start; target < range.end; target++) {
+				ModelCalculate::GradientDescent(trainInputs, weights, trainTargetsOneHot, target);
+			}});
 
 		// Loss
 		std::cout << "Epoch " << std::left << std::setw(std::to_string(epochs).length() + 2) << epoch + 1;

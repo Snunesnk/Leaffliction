@@ -1,18 +1,24 @@
-#include <iostream>
+﻿#include <iostream>
 #include <filesystem>
+#include <sstream>
 
-std::string checkImagesInDirectory(const std::string& directoryPath, std::string informations = "", size_t deepness = 0)
+std::string checkImagesInDirectory(const std::string &directoryPath, std::string informations = "", size_t deepness = 0)
 {
 	size_t imageCount = 0;
-	for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
+	for (const auto &entry : std::filesystem::directory_iterator(directoryPath))
+	{
 		std::filesystem::path entryPath = entry.path();
 		std::string DirectoryName = entryPath.filename().generic_string();
-		if (std::filesystem::is_directory(entryPath)) {
-			for (size_t i = 0; i <= deepness; i++) {
-				if (i == deepness) {
+		if (std::filesystem::is_directory(entryPath))
+		{
+			for (size_t i = 0; i <= deepness; i++)
+			{
+				if (i == deepness)
+				{
 					std::cout << "|--- ";
 				}
-				else {
+				else
+				{
 					std::cout << "|    ";
 				}
 			}
@@ -23,22 +29,28 @@ std::string checkImagesInDirectory(const std::string& directoryPath, std::string
 			informations = checkImagesInDirectory(genericPath, informations, deepness + 1);
 			informations += ",";
 		}
-		else if (std::filesystem::is_regular_file(entryPath)) {
+		else if (std::filesystem::is_regular_file(entryPath))
+		{
 			std::string fileName = entryPath.filename().generic_string();
 			size_t pos = fileName.find('.');
-			if (pos != std::string::npos) {
+			if (pos != std::string::npos)
+			{
 				std::string fileType = fileName.substr(pos, fileName.size());
-				if (fileType == ".JPG") {
+				if (fileType == ".JPG")
+				{
 					imageCount++;
 				}
 			}
 		}
 	}
-	for (size_t i = 0; i <= deepness; i++) {
-		if (i == deepness) {
+	for (size_t i = 0; i <= deepness; i++)
+	{
+		if (i == deepness)
+		{
 			std::cout << "'--- ";
 		}
-		else {
+		else
+		{
 			std::cout << "|    ";
 		}
 	}
@@ -46,43 +58,49 @@ std::string checkImagesInDirectory(const std::string& directoryPath, std::string
 	return informations + std::to_string(imageCount);
 }
 
-std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(const std::string& str)
+std::vector<std::pair<std::string, std::string>> extractKeyValuePairsFromString(const std::string &str)
 {
 	std::vector<std::pair<std::string, std::string>> result;
 	std::istringstream ss(str);
 	std::string segment;
-	while (std::getline(ss, segment, ',')) {
-		try {
-			size_t value = std::stoi(segment);
-			for (auto it = result.end() - 1; it >= result.begin(); --it) {
-				if (it->second == "") {
+	while (std::getline(ss, segment, ','))
+	{
+		try
+		{
+			for (auto it = result.end() - 1; it >= result.begin(); --it)
+			{
+				if (it->second == "")
+				{
 					it->second = segment;
 					break;
 				}
 			}
 		}
-		catch (...) {
+		catch (...)
+		{
 			result.emplace_back(segment, "");
 		}
 	}
 	return result;
 }
 
-void generateAndDisplayCharts(const std::vector<std::pair<std::string, std::string>>& output_pair)
+void generateAndDisplayCharts(const std::vector<std::pair<std::string, std::string>> &output_pair)
 {
-	const std::vector<std::string> colors = { "blue", "green", "red", "cyan", "magenta", "yellow", "purple", "orange", "pink", "brown", "gray" };
+	const std::vector<std::string> colors = {"blue", "green", "red", "cyan", "magenta", "yellow", "purple", "orange", "pink", "brown", "gray"};
 
 	// Create Python command
 	std::string pythonCommand = "python -c \"";
 	pythonCommand += "import matplotlib.pyplot as plt;";
 	// Add database
 	pythonCommand += "data = [";
-	for (const auto& pair : output_pair) {
+	for (const auto &pair : output_pair)
+	{
 		pythonCommand += "('" + pair.first + "', " + pair.second + ",),";
 	}
 	pythonCommand += "];";
 	pythonCommand += "colors = [";
-	for (auto i = 0; i < output_pair.size(); ++i) {
+	for (size_t i = 0; i < output_pair.size(); ++i)
+	{
 		pythonCommand += "'" + colors[i % colors.size()] + "',";
 	}
 	pythonCommand += "];";
@@ -102,13 +120,16 @@ void generateAndDisplayCharts(const std::vector<std::pair<std::string, std::stri
 
 	// Execute Python command
 	if (std::system(pythonCommand.c_str()) != 0)
-		std::cerr << "Failed to execute Python command." << std::endl << std::endl;
+		std::cerr << "Failed to execute Python command." << std::endl
+				  << std::endl;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-	try {
-		if (argc < 2) {
+	try
+	{
+		if (argc < 2)
+		{
 			throw std::runtime_error("Usage: " + (std::string)argv[0] + " -src <source_path>");
 		}
 		std::string directoryPath = argv[1];
@@ -120,7 +141,8 @@ int main(int argc, char* argv[])
 
 		generateAndDisplayCharts(output_pair);
 	}
-	catch (const std::exception& e) {
+	catch (const std::exception &e)
+	{
 		std::cerr << e.what() << std::endl;
 		return 1;
 	}

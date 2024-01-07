@@ -9,7 +9,7 @@
 
 #include <zip_file.hpp>
 
-std::vector<double> getCaracteristics(cv::Mat& image)
+std::vector<double> getCaracteristics(cv::Mat &image)
 {
 	std::vector<double> features;
 
@@ -21,14 +21,17 @@ std::vector<double> getCaracteristics(cv::Mat& image)
 	return features;
 }
 
-void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int generation)
+void GenerateDatabase(std::string source, std::vector<DataEntry> &database, int generation)
 {
-	std::cout << "\r\033[K" << "Database generation..." << std::endl;
-	for (const auto& entry : std::filesystem::directory_iterator(source)) {
+	std::cout << "\r\033[K"
+			  << "Database generation..." << std::endl;
+	for (const auto &entry : std::filesystem::directory_iterator(source))
+	{
 		// Get the target of the folder
 		const std::string target = entry.path().filename().generic_string();
 		// Next if not expected directory
-		if (std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), target) == ModelUtils::targets.end()) {
+		if (std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), target) == ModelUtils::targets.end())
+		{
 			continue;
 		}
 		const std::string folderPath = entry.path().generic_string() + "/";
@@ -36,9 +39,10 @@ void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int 
 
 		std::vector<std::vector<std::string>> imageGroups;
 
-		// Parallel processing to split	
+		// Parallel processing to split
 		std::unordered_map<std::string, size_t> imageGroupIndices;
-		cv::parallel_for_(cv::Range(0, imagePaths.size()), [&](const cv::Range& range) {
+		cv::parallel_for_(cv::Range(0, imagePaths.size()), [&](const cv::Range &range)
+						  {
 			for (int i = range.start; i < range.end; i++) {
 				const std::string& imagePath = imagePaths[i];
 				const size_t position = imagePath.find_last_of('_');
@@ -56,10 +60,10 @@ void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int 
 						imageGroups[imageGroupIndices[imageName]].push_back(imagePath);
 					}
 				}
-			}
-			});
+			} });
 		// Parallel processing to sort
-		cv::parallel_for_(cv::Range(0, imageGroups.size()), [&](const cv::Range& range) {
+		cv::parallel_for_(cv::Range(0, imageGroups.size()), [&](const cv::Range &range)
+						  {
 			for (int i = range.start; i < range.end; i++) {
 				std::vector<std::string>& imageGroup = imageGroups[i];
 				std::sort(imageGroup.begin() + 1, imageGroup.end(), [](const std::string& a, const std::string& b) {
@@ -69,18 +73,20 @@ void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int 
 					int intB = std::stoi(numeroB);
 					return intA < intB;
 					});
-			}
-			});
+			} });
 
 		// Generate database
-		for (auto& imageGroup : imageGroups) {
-			if (imageGroup.size() != 7) {
+		for (auto &imageGroup : imageGroups)
+		{
+			if (imageGroup.size() != 7)
+			{
 				throw std::runtime_error("Strange error");
 			}
 			DataEntry dataEntry;
 			std::vector<std::vector<double>> featureGroups(imageGroup.size());
 			// Parallel processing of each imageGroup
-			cv::parallel_for_(cv::Range(0, imageGroup.size()), [&](const cv::Range& range) {
+			cv::parallel_for_(cv::Range(0, imageGroup.size()), [&](const cv::Range &range)
+							  {
 				for (int i = range.start; i < range.end; ++i) {
 					// Get image
 					std::string filePath = folderPath + imageGroup[i];
@@ -92,19 +98,20 @@ void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int 
 					const std::vector<double> features = getCaracteristics(image);
 					{
 						std::lock_guard<std::mutex> lock(ImageUtils::mutex);
-						for (const auto feature : features) {
+						for (const auto &feature : features) {
 							featureGroups[i].push_back(feature);
 						}
 						// Display name
 						std::cout << "\r\033[K" << filePath << std::flush;
 					}
-				}
-				});
+				} });
 			// Add dataEntry to the database
 			dataEntry.index = database.size();
 			dataEntry.target = target;
-			for (const auto featureGroup : featureGroups) {
-				for (const auto feature : featureGroup) {
+			for (const auto &featureGroup : featureGroups)
+			{
+				for (const auto feature : featureGroup)
+				{
 					dataEntry.features.push_back(feature);
 				}
 			}
@@ -113,19 +120,22 @@ void GenerateDatabase(std::string source, std::vector<DataEntry>& database, int 
 			int progress = (database.size() * 100) / ((generation / 7) * 8);
 			int numComplete = (progress * 50) / 100;
 			int numRemaining = 50 - numComplete;
-			std::cout << "\n" << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%";
+			std::cout << "\n"
+					  << "[" << std::string(numComplete, '=') << std::string(numRemaining, ' ') << "] " << std::setw(3) << progress << "%";
 			std::cout << "\033[A";
 		}
 	}
-	std::cout << "\r\033[K" << "DataEntry generated : " << database.size() << std::endl;
+	std::cout << "\r\033[K"
+			  << "DataEntry generated : " << database.size() << std::endl;
 }
 
-void DeleteExistingImages(const std::vector<std::filesystem::directory_entry>& filesystemDirectories)
+void DeleteExistingImages(const std::vector<std::filesystem::directory_entry> &filesystemDirectories)
 {
 	std::cout << "Reseting..." << std::endl;
 	ImageUtils::numComplete = 0;
 	// Count files
-	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range &range)
+					  {
 		for (int directory = range.start; directory < range.end; directory++) {
 			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
 			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
@@ -137,11 +147,11 @@ void DeleteExistingImages(const std::vector<std::filesystem::directory_entry>& f
 					}
 				}
 			}
-		}
-		});
+		} });
 	ImageUtils::progress = 0;
 	// Delete files
-	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range &range)
+					  {
 		for (int directory = range.start; directory < range.end; directory++) {
 			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
 			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
@@ -160,17 +170,24 @@ void DeleteExistingImages(const std::vector<std::filesystem::directory_entry>& f
 					}
 				}
 			}
-		}
-		});
-	std::cout << std::endl << "\r\033[K" << "\033[A" << "\r\033[K" << "\033[A" << "\r\033[K" << "Images deleted : " << ImageUtils::progress << std::endl;
+		} });
+	std::cout << std::endl
+			  << "\r\033[K"
+			  << "\033[A"
+			  << "\r\033[K"
+			  << "\033[A"
+			  << "\r\033[K"
+			  << "Images deleted : " << ImageUtils::progress << std::endl;
 }
 
-void GenerateAugmentations(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, int generation)
+void GenerateAugmentations(const std::vector<std::filesystem::directory_entry> &filesystemDirectories, int generation)
 {
-	std::cout << "\r\033[K" << "Augmentations..." << std::endl;
+	std::cout << "\r\033[K"
+			  << "Augmentations..." << std::endl;
 	std::vector<double> augGenerations(ModelUtils::targets.size(), generation);
 	// Count files
-	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range &range)
+					  {
 		for (int directory = range.start; directory < range.end; directory++) {
 			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
 			for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
@@ -180,45 +197,54 @@ void GenerateAugmentations(const std::vector<std::filesystem::directory_entry>& 
 					}
 				}
 			}
-		}
-		});
+		} });
 	ImageUtils::numComplete = 0;
-	for (auto& augGeneration : augGenerations) {
+	for (auto &augGeneration : augGenerations)
+	{
 		ImageUtils::numComplete += augGeneration;
 	}
 	ImageUtils::progress = 0;
 	// Augmentation files
-	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range &range)
+					  {
 		for (int directory = range.start; directory < range.end; directory++) {
 			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
 			if (augGenerations[directory] > 0) {
 				ImageUtils::SaveAFromToDirectory(directoryPath, directoryPath, augGenerations[directory]);
 			}
-		}
-		});
-	std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "Augmentations generated : " << ImageUtils::progress << std::endl;
+		} });
+	std::cout << "\r\033[K"
+			  << "\033[A"
+			  << "\r\033[K"
+			  << "Augmentations generated : " << ImageUtils::progress << std::endl;
 }
 
-void GenerateTransformations(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, int generation)
+void GenerateTransformations(const std::vector<std::filesystem::directory_entry> &filesystemDirectories, int generation)
 {
-	std::cout << "\r\033[K" << "Transformation..." << std::endl;
+	std::cout << "\r\033[K"
+			  << "Transformation..." << std::endl;
 	ImageUtils::numComplete = generation * 8;
 	ImageUtils::progress = 0;
 	// Transformation files
-	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+	cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range &range)
+					  {
 		for (int directory = range.start; directory < range.end; directory++) {
 			const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
 			ImageUtils::SaveTFromToDirectory(directoryPath, directoryPath, generation);
-		}
-		});
-	std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "Transformations generated : " << ImageUtils::progress * 6 << std::endl;
+		} });
+	std::cout << "\r\033[K"
+			  << "\033[A"
+			  << "\r\033[K"
+			  << "Transformations generated : " << ImageUtils::progress * 6 << std::endl;
 }
 
-void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystemDirectories, const std::string& source, const std::string& models)
+void GenerateZip(const std::vector<std::filesystem::directory_entry> &filesystemDirectories, const std::string &source, const std::string &models)
 {
-	try {
+	try
+	{
 		ImageUtils::numComplete = 0;
-		cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range &range)
+						  {
 			for (int directory = range.start; directory < range.end; directory++) {
 				const std::string directoryPath = filesystemDirectories[directory].path().generic_string() + "/";
 				for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
@@ -230,9 +256,10 @@ void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystem
 						}
 					}
 				}
-			}});
+			} });
 		ImageUtils::progress = 0;
-		cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range& range) {
+		cv::parallel_for_(cv::Range(0, filesystemDirectories.size()), [&](const cv::Range &range)
+						  {
 			for (int directory = range.start; directory < range.end; directory++) {
 				miniz_cpp::zip_file zip;
 				for (const auto& entry : std::filesystem::directory_iterator(filesystemDirectories[directory])) {
@@ -253,9 +280,11 @@ void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystem
 					}
 				}
 				zip.save(ModelUtils::targets[directory] + ".zip");
-			}
-			});
-		std::cout << "\n" << "\r\033[K" << "\033[A" << "\r\033[K";
+			} });
+		std::cout << "\n"
+				  << "\r\033[K"
+				  << "\033[A"
+				  << "\r\033[K";
 
 		miniz_cpp::zip_file zip;
 		zip.writestr("models.txt", models);
@@ -263,8 +292,10 @@ void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystem
 
 		system("find . -maxdepth 2 -name '*.zip' -exec zip archive.zip '{}' \\; -exec rm '{}' \\;");
 	}
-	catch (const std::exception& e) {
-		std::cerr << std::endl << e.what() << std::endl;
+	catch (const std::exception &e)
+	{
+		std::cerr << std::endl
+				  << e.what() << std::endl;
 		std::cerr << "Trying by console command... " << std::endl;
 
 		miniz_cpp::zip_file zip;
@@ -275,10 +306,12 @@ void GenerateZip(const std::vector<std::filesystem::directory_entry>& filesystem
 	}
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-	try {
-		if (argc < 2) {
+	try
+	{
+		if (argc < 2)
+		{
 			throw std::runtime_error("Usage: " + (std::string)argv[0] + " <source_path> -gen <generation_max> -csv <csv_path>");
 		}
 		// Apple_Black_rot     620 files
@@ -290,25 +323,30 @@ int main(int argc, char* argv[])
 		// Grape_healthy       422 files
 		// Grape_spot          1075 files
 		std::string source = argv[1];
-		std::string csv;// = "data.csv";
+		std::string csv; // = "data.csv";
 		int generation = 500;
 		bool reset = true;
 
 		// Parse command-line arguments
-		for (int i = 2; i < argc; ++i) {
+		for (int i = 2; i < argc; ++i)
+		{
 			std::string arg = argv[i];
-			if (arg == "-gen" && i + 1 < argc) {
+			if (arg == "-gen" && i + 1 < argc)
+			{
 				generation = std::atoi(argv[i + 1]);
-				if (generation > 1640) {
+				if (generation > 1640)
+				{
 					generation = 1640;
 				}
 				++i;
 			}
-			else if (arg == "-csv" && i + 1 < argc) {
+			else if (arg == "-csv" && i + 1 < argc)
+			{
 				csv = arg[i + 1];
 				++i;
 			}
-			else if (arg == "-h") {
+			else if (arg == "-h")
+			{
 				std::cout << "Usage: " << argv[0] << " -gen <generation_max> -csv <csv_path> --data" << std::endl;
 				return 0;
 			}
@@ -318,20 +356,24 @@ int main(int argc, char* argv[])
 
 		// Get folder list
 		std::vector<std::filesystem::directory_entry> filesystemDirectories;
-		for (const auto entry : std::filesystem::directory_iterator(source)) {
+		for (const auto &entry : std::filesystem::directory_iterator(source))
+		{
 			const std::string directoryName = entry.path().filename().generic_string();
 			// Check only for expected directories
-			if (std::filesystem::is_directory(entry.path()) && std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), directoryName) == ModelUtils::targets.end()) {
+			if (std::filesystem::is_directory(entry.path()) && std::find(ModelUtils::targets.begin(), ModelUtils::targets.end(), directoryName) == ModelUtils::targets.end())
+			{
 				continue;
 			}
 			filesystemDirectories.push_back(entry);
 		}
 
-		if (csv.empty()) {
+		if (csv.empty())
+		{
 			auto start_time = std::chrono::high_resolution_clock::now();
 
 			std::cout << "Images generation..." << std::endl;
-			if (reset == true) {
+			if (reset == true)
+			{
 				DeleteExistingImages(filesystemDirectories);
 				GenerateAugmentations(filesystemDirectories, generation);
 				GenerateTransformations(filesystemDirectories, generation);
@@ -341,9 +383,11 @@ int main(int argc, char* argv[])
 
 			auto end_time = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-			std::cout << "\r\033[K" << "Images generation took " << duration * 0.000001 << " seconds." << std::endl;
+			std::cout << "\r\033[K"
+					  << "Images generation took " << duration * 0.000001 << " seconds." << std::endl;
 		}
-		else {
+		else
+		{
 			ModelUtils::LoadDataFile(database, csv);
 		}
 
@@ -355,15 +399,20 @@ int main(int argc, char* argv[])
 
 		auto end_time = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-		std::cout << "\r\033[K" << "Models training took " << duration * 0.000001 << " seconds." << std::endl;
+		std::cout << "\r\033[K"
+				  << "Models training took " << duration * 0.000001 << " seconds." << std::endl;
 
 		// ZIP
 		std::cout << "ZIP generation..." << std::endl;
 		std::string models = ModelUtils::SaveModels(weights, featureMeans, featureStdDevs);
 		GenerateZip(filesystemDirectories, source, models);
-		std::cout << "\r\033[K" << "\033[A" << "\r\033[K" << "ZIP generated." << std::endl;
+		std::cout << "\r\033[K"
+				  << "\033[A"
+				  << "\r\033[K"
+				  << "ZIP generated." << std::endl;
 	}
-	catch (const std::exception& e) {
+	catch (const std::exception &e)
+	{
 		std::cerr << e.what() << std::endl;
 		return 1;
 	}
